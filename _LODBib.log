@@ -1,0 +1,12 @@
+
+
+processing file: _LODBib.Rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |......................................................................| 100%
+   inline R code fragments
+
+
+output file: _LODBib.knit.md
+
+/usr/local/bin/pandoc +RTS -K512m -RTS _LODBib.knit.md --to html4 --from markdown+autolink_bare_uris+tex_math_single_backslash --output _LODBib.html --lua-filter /Library/Frameworks/R.framework/Versions/4.0/Resources/library/rmarkdown/rmarkdown/lua/pagebreak.lua --lua-filter /Library/Frameworks/R.framework/Versions/4.0/Resources/library/rmarkdown/rmarkdown/lua/latex-div.lua --self-contained --wrap preserve --variable bs3=TRUE --standalone --section-divs --template /var/folders/jk/d24lm6n944q5y650lph85m7w0000gp/T//RtmphPT8Xf/BiocStyle/template.html --no-highlight --variable highlightjs=1 --variable theme=bootstrap --css /Library/Frameworks/R.framework/Versions/4.0/Resources/library/BiocStyle/resources/html/bioconductor.css --css _pandoc3.css --include-in-header /var/folders/jk/d24lm6n944q5y650lph85m7w0000gp/T//RtmphPT8Xf/rmarkdown-str4ea6f65c2b7.html --mathjax --variable 'mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML' --variable code_folding=hide --variable code_menu=1 --citeproc 
+
+Output created: _LODBib.html

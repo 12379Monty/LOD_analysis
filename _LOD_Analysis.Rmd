@@ -1,0 +1,2928 @@
+---
+title: "LoD Studies: Experimental Design and Analysis"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    toc: true
+    # does this have an effect
+    fig_caption: yes
+    # this has no effect
+    number_sections: yes
+    css: ['_pandoc3.css']
+bibliography: [_LOD.bib]
+csl: _cell-numeric.csl
+link-citations: true
+---
+
+<!-- EXCLUDE THESE STYLES
+h2 {
+  background-color: #D4DAEC;
+    text-indent: 100px;
+}
+h3 {
+  background-color: #dddddd;
+}
+.main-container {
+  max-width: 1100px !important;
+}
+-->
+
+<style>
+@import url('https://fonts.googleapis.com/css?family=Raleway');
+@import url('https://fonts.googleapis.com/css?family=Oxygen');
+@import url('https://fonts.googleapis.com/css?family=Raleway:bold');
+@import url('https://fonts.googleapis.com/css?family=Oxygen:bold');
+
+.main-container {
+  max-width: 900px !important;
+}
+
+body{
+  font-family: 'Oxygen', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+h1,h2,h3,h4 {
+  font-family: 'Raleway', sans-serif;
+}
+
+.container { width: 1400px; }
+
+
+caption {
+  font-size: 20px;
+  caption-side: top;
+  text-indent: 30px;
+  background-color: lightgrey;
+  color: black;
+  margin-top: 5px;
+}
+
+g-table-intro h4 {
+  text-indent: 0px;
+}
+</style>
+
+
+```{r m0b-GlobalOptions, results="hide", include=FALSE, cache=FALSE, out.width.px=1, out.height.px=1}
+
+knitr::opts_knit$set(stop_on_error = 2L) #really make it stop
+options(knitr.table.format = 'html')
+
+options(stringsAsFactors=F)
+
+#knitr::dep_auto()
+```
+<!-- ######################################################################## -->
+
+
+
+```{r m0b-Prelims,  include=FALSE, echo=FALSE, results='hide', message=FALSE, out.width.px=1, out.height.px=1} 
+
+FN <- "_LOD_Analysis"
+if(sum(grepl(FN, list.files()))==0) stop("Check FN")
+
+ suppressMessages(require(rmarkdown))
+ suppressMessages(require(knitr))
+
+ suppressPackageStartupMessages(require(methods))
+ suppressPackageStartupMessages(require(bookdown))
+
+ suppressPackageStartupMessages(require(data.table))
+ options(datatable.fread.datatable=F)
+
+ suppressPackageStartupMessages(require(plyr))
+ suppressPackageStartupMessages(require(dplyr))
+ suppressPackageStartupMessages(require(magrittr))
+
+ # Shotcuts for knitting and redering while in R session (Invoke interactive R from R/Scripts folder)
+ kk <- function(n='') knitr::knit2html(paste("t", n, sep=''), envir=globalenv(),
+       output=paste(FN,".html", sep=''))
+
+ rr <- function(n='') rmarkdown::render(paste("t", n, sep=''), envir=globalenv(),
+       output_file=paste(FN,".html", sep='')) ##, output_dir='Scripts')
+
+ bb <- function(n='') browseURL(paste(FN,".html", sep=''))
+
+ # The usual shotcuts
+ zz <- function(n='') source(paste("t", n, sep=''))
+
+ WRKDIR <- '..'
+ if(!file.exists(WRKDIR)) stop("WRKDIR ERROR", WRKDIR)
+
+
+```
+<!-- ######################################################################## -->
+
+
+*** 
+```{r lod-utilityFns, out.width.px=1, out.height.px=1, echo=FALSE}
+ # Here we define some utility functions
+source('utilityFns.r')
+
+```
+
+<!-- ######################################################################## -->
+
+<br/>
+
+# Abstract
+
+In this vignette we look at experimental design and analysis issues
+around LoD estimation.  In particular, we examine the 
+*minimal experiment design* for the probit appproach to 
+the evaluation of the limit of detection from 
+CLSI document EP17-A2 [@CLSI-EP17A2:2012aa].  A question of interest
+is how to estimate the SE of an LoD estimate.
+For LoD estimates derived from a fitted probit or logistic model,
+the CRAN R package `investr` (inverse estimation, or calibration) produces LoD CIs
+based on established mathematical theory. We compare these estimates of standard errors
+to  Monte Carlo simulation standard deviations.
+
+
+<!--
+<br/>
+
+* What is the effect of departures from the nominal design
+on the LoD estimates and CIs?  ie. what happens to the probit fit based
+estimate of LoD when some design points drop out.
+    - as long at the design is sound and has design points surrounding
+the LoD, the pobit model does a good job at estimating the LoD.
+-->
+
+<!--
+* How are LoD estimates affected by variability and measurement error
+at various design points?
+    - variability at points that are distant from the LoD can have
+a large impact on the LoD estimates.
+
+* How sensitive are the results to the actual data generation
+process?
+   - the probit fit is fairly robust to the data generation process.
+-->
+
+
+We also consider an alternative to the probit modeling approach
+for estimating the LoD.  The motivation is the following:  
+
+* Nowhere in the probit modeling approach to LoD estimation 
+is the linear predictor that is part of the probit model used directly -
+the estimated coefficients are never examined nor used directly.  
+
+* The only purpose that the model serves is to provide an estimated
+hit-rate or detection fraction at a fixed dose, or `dose` in this case.
+The dose of interest is the LD95 dose where the hit-rate (first) exceeds 95%.  
+
+* Whereas a paremetric model such as the probit model could be helpful
+in finding the LD95 dose, once this dose is known, or approximately known,
+the probit model is no longer useful. 
+
+* For the purpose of establishing the
+LD95 dose level, we argue that collecting data at the wide range
+of dosages necessary to obtain a reliable probit fit is inefficient. 
+We are better off collecting detection preformance characteristics at 
+a few points near the LD95 dose.
+
+In the last section of this vignette we show how the LD95 value can be 
+accurately estimated from detection data at a few points near the LD95 value.
+
+## Open Questions
+
+* It turns out that the estimated standard errors for the LoD that
+are based on calibration or inverse regression theory underestimate
+the variability - See Table \@ref(tab:lod-lod-est-var-sum) in 
+Section \@ref(lod-est-var-sum).  
+    - Is this a known attribute of these estimates?  
+ 
+* We have collected empirical data to characterize the variability
+of various LoD estimates.  Can we derive theoretical
+bounds on the variability of LoD estimates from probit model analysis
+or by local fits.  
+    - ie. Can we expand Equation  \@ref(eq:var-x-over-y-eq)
+and reduce the result to a function on fthe number of observations?  
+    - Similarly for inverse regresssion se estimates.
+
+
+<br/>
+
+# Outline
+
+* Section \@ref(probit-model) descibes the probit model and how it is used to estimate
+a Limit of Detection (LoD) for a test.
+
+* In Section \@ref(ep17-a2-probit-example) we analyze the data from the 
+probit examples from Appendix C from CLSI document EP17-A2 [@CLSI-EP17A2:2012aa].
+   - by reproducing the results from CLSI document EP17-A2 we establish
+the validity of some software tools that could be used
+for LoD studies in accordance to the CLSI document EP17-A2 guidance.
+
+<!--
+   - a review the CLSI document EP17-A2 guideline for
+using a probit approach to evaluate the LoD for measurement procedures is in the appendix
+(Section \@ref(app-e-ep17-a2))
+-->
+
+* In Section \@ref(var-lod-est) we look at variability in the estimated LoD
+based on probit fits to some simaluated data.
+
+* In Section \@ref(lod-non-parm-local) we look at the performance 
+of an an alternative LoD estimate based on detection data collected near the LoD.
+
+* References are listed in Section \@ref(references).
+
+<br/>
+The remainder of the sections are Appendices with reference material and
+additional data explorations.
+
+* Section \@ref(appendix-a) has extra material and references.
+
+* Section \@ref(ccga-titration-data) examines the CCGA titration data in relation to LoD
+estimation.  
+
+* In Section \@ref(effect-design-probit-fit) we look at the effects of
+differences in the design on the probit fit.
+
+<!--
+* In Section \@ref(lod-misspec-model) we examine the variabiltiy of 
+probit fit LoD estimates when the model is misspecified.
+-->
+
+<!--
+* In Section \@ref(app-e-ep17-a2) we review the CLSI document EP17-A2 guideline for
+using a probit approach to evaluate the LoD for measurement procedures.  
+   - this section may provide useful guidance not only for the
+computational methodology for evaluating an LoD, but for the types and
+numbers of samples that may be necessary to convince an external reviewer
+of the validity of an LoD estimate.
+-->
+
+
+<br/>
+
+*** 
+
+Nomenclature:
+
+* `dose` and `dose` are used interchangeably throughout.
+
+* `prob` and `hit rate` are used interchangeably throughout.
+
+* LoD = Limit of Detection.
+
+* LD95 = Dose for which the hit rate is 0.95.
+ie. the LoD when the target hit rate is 95%.
+
+* As dose values of interest are very small, we will use `dose * 1e6` in some analyses
+with loss of generality.  ie. a dose value of 0.03% will be representd by a value of 300.  
+ 
+
+<br/>
+
+# The Probit Model for LoD estimation {#probit-model}
+ 
+The probit model for success rate, coded as $Y=1$, given a covariate design $X$ is
+specified by the following equation:
+
+\begin{equation}
+P(Y=1 | X) = \Phi( X \cdot B)
+(\#eq:probit-eq1)
+\end{equation}
+
+
+In the simple case of a single covariate, this reduces to:
+
+\begin{equation}
+P(Y=1 | x) = \Phi( \alpha + \beta \cdot x )
+(\#eq:probit-eq2)
+\end{equation}
+
+To find $x$ correspoding to a given probability of success $p$:
+\begin{equation}
+x = \frac{\Phi^{-1}(p) - \alpha}{\beta}
+(\#eq:inv-probit-eq)
+\end{equation}
+
+<!--
+## LoD Estimate 
+-->
+
+The LoD is estimated as the value of $x$ corresponding to
+a given hit rate or probability of success $p$.  The target hit rate
+will vary from application to application.  In the context of
+a molecular diagnostic test that aims to detect cancer, the targeted hit rate may be 95%, for example,
+and $x$ may be an indicator of tumor load.  The limit of detection is then
+the estimated sample tumor load for which the test is expected to detect 95% of the cases.
+
+An LoD value can be estimated from a fitted probit model using
+basic R functions.
+
+```
+
+inv_probit <- function(p, m) (qnorm(p) - coef(m)[1])/coef(m)[2]
+
+probit_fit <- glm(cbind(Detected, Total-Detected) ~ log10(Conc),
+           binomial(link = "probit"), data=data_frm)
+
+LD95 <- 10^inv_probit(0.95, m=probit_fit)
+
+
+```
+
+Similar functions can be invoked to get estimates of LoD based on
+a fitted logit model.
+
+
+<br/>   
+
+## The interpretation of the estimated coefficients {#interp-coeff}
+
+To interpert the estimated coefficients in Equation \@ref(eq:probit-eq2)
+one needs to visualize the shape of the cumulative normal distribution,
+$\Phi(x)$, and realize how the coefficients, $\alpha$ and $\beta$, will 
+transform the domain, $x$, of the transformation, $\Phi$.
+
+<br/>   
+
+```{r lod-phi-function, cache=F, cache.vars='', fig.height=4, fig.width=4, fig.cap="Cumulative Normal Distribution", out.width.px=1, out.height.px=1}
+
+x_vec <- seq(-5, 5, length.out = 100)
+plot(x=x_vec, y=pnorm(x_vec), xlab='x', 
+ylab=expression(Phi(x)), type='l', lwd=3)
+
+```
+
+* $\Phi(x)$ is close to zero for x < -3, and close to 1 when x > 3.  
+
+* In the probit fit,  $\Phi( \alpha + \beta \cdot x )$, the linear transformation,
+$\alpha + \beta \cdot x$, shifts and rescales the  abscissa, or the x-axis.  
+
+* Changing either $\alpha$ or $\beta$ will affect when, as a function of x,
+the transformed abscissa will reach  -3 and the corresponding transformed
+values, $\Phi( \alpha + \beta \cdot x )$, begin to rise above zero.
+
+* How fast, as a function of x, the values of $\Phi( \alpha + \beta \cdot x )$
+go from 0 to 1, what we can think of as the "slope" in the probit fit,
+only depends on $\beta$.
+
+
+
+<br/>   
+
+## Note on confidence intervals for the LoD  {#fc-lod-ci}
+
+The estimated LoD, Equation \@ref(eq:inv-probit-eq), is the input value 
+(the concentration or more generally the predictor level)
+corresponding to a given response value (a given hit rate or more generally a response level)
+according to a fitted model (probit or logit, for example).  This is known as the
+`calibration problem` in regression and also known as `inverse regression`.
+The [`investr` R package](https://cran.r-project.org/web/packages/investr/index.html)
+on CRAN provides functionality to compute inverse estimates (ie. LoD values)
+and confidence intervals based in established statistical theory
+[@Greenwell:2014aa;@Graybill:1994aa;@Huet:2004aa;@Norman:2014aa;@Oman:1998aa;@Seber:1989aa].
+
+We note that the *confidence interval* for the estimated predictor 
+value that corresponds to a specified response value, ie. the LoD,
+is different and cannot be derived from the confidence interval for fitted values (ie. the expected response
+at any given point in the predictor space) or the  confidence interval
+for a predicted value (ie. a predicted response at any given point).  
+This critically important distinction is not made in EP17-A2 [@CLSI-EP17A2:2012aa].
+In fact confidence intervals for the LoD estimates and 
+confidence bands for the fits are mentionned in the same paragraph without emphasizing
+that the two are distinct entities.  When we repeat the analysis of the
+*EP17-A2 Probit Example* in the next section we add confidence interval estimates
+for the LoD to the results, but we omit the confidence bounds around the fit
+as these cannot be used to judge the uncertainty in the estimated LoD, which
+is our primary concern.  
+
+ 
+
+<!--
+From `?investr::invest`
+
+```
+Description:
+
+     The function ‘invest’ computes the inverse estimate and a
+     condfidence interval for the unknown predictor value that
+     corresponds to an observed value of the response (or vector
+     thereof) or specified value of the mean response. See the
+     references listed below for more details.
+
+References:
+
+     Greenwell, B. M., and Schubert Kabban, C. M. (2014). investr: An R
+     Package for Inverse Estimation. _The R Journal_, *6*(1), 90-100.
+     URL
+     http://journal.r-project.org/archive/2014-1/greenwell-kabban.pdf.
+
+     Graybill, F. A., and Iyer, H. K. (1994). _Regression analysis:
+     Concepts and Applications_. Duxbury Press.
+
+     Huet, S., Bouvier, A., Poursat, M-A., and Jolivet, E.  (2004)
+     _Statistical Tools for Nonlinear Regression: A Practical Guide
+     with S-PLUS and R Examples_. Springer.
+
+     Norman, D. R., and Smith H. (2014). _Applied Regression Analysis_.
+     John Wiley & Sons.
+
+     Oman, Samuel D. (1998). Calibration with Random Slopes.
+     _Biometrics_ *85*(2): 439-449. doi:10.1093/biomet/85.2.439.
+
+     Seber, G. A. F., and Wild, C. J. (1989) _Nonlinear regression_.
+     Wiley.
+```
+-->
+
+
+<br/>
+
+# EP17-A2 Probit Example {#ep17-a2-probit-example}
+
+Assemble data frame as in EP17-A2 Appendix C [@CLSI-EP17A2:2012aa].
+
+
+```{r lod-probit-example-data, cache=T, cache.vars='example_data_frm', out.width.px=1, out.height.px=1}
+example_data_frm <- as.data.frame(rbind(
+
+c(Conc = 0.000, Lot=1, Total=22, Detected=0),   # Conc = 0 is not used for probit fits!!! 
+c(Conc = 0.000, Lot=2, Total=22, Detected=0),
+c(Conc = 0.000, Lot=3, Total=22, Detected=0),
+
+c(Conc = 0.006, Lot=1, Total=30, Detected=11),
+c(Conc = 0.006, Lot=2, Total=30, Detected=12),
+c(Conc = 0.006, Lot=3, Total=34, Detected=22),
+
+c(Conc = 0.014, Lot=1, Total=30, Detected=15),
+c(Conc = 0.014, Lot=2, Total=30, Detected=22),
+c(Conc = 0.014, Lot=3, Total=34, Detected=31),
+
+c(Conc = 0.025, Lot=1, Total=32, Detected=23),
+c(Conc = 0.025, Lot=2, Total=32, Detected=28),
+c(Conc = 0.025, Lot=3, Total=32, Detected=27),
+
+c(Conc = 0.050, Lot=1, Total=32, Detected=29),
+c(Conc = 0.050, Lot=2, Total=32, Detected=32),
+c(Conc = 0.050, Lot=3, Total=32, Detected=32),
+
+c(Conc = 0.150, Lot=1, Total=32, Detected=32),
+c(Conc = 0.150, Lot=2, Total=32, Detected=32),
+c(Conc = 0.150, Lot=3, Total=32, Detected=32),
+
+c(Conc = 0.300, Lot=1, Total=32, Detected=32),
+c(Conc = 0.300, Lot=2, Total=32, Detected=32),
+c(Conc = 0.300, Lot=3, Total=32, Detected=32),
+
+c(Conc = 0.500, Lot=1, Total=32, Detected=32),
+c(Conc = 0.500, Lot=2, Total=32, Detected=32),
+c(Conc = 0.500, Lot=3, Total=32, Detected=32)
+)
+)
+
+example_data_frm$hitRate <- with(example_data_frm,
+round(Detected/Total, 3))
+
+```
+
+* This example is for a molecular diagnostics test for which the **limit of blank**
+(LoB) equals zero. Data were collected using three lots of reagent to establish 
+the limit of detection (LoD) by probit analysis for a microbiology test done 
+on bacterial DNA. A single patient sample is used to simplify this example, 
+rather than the minimum of three as required by the protocol. A dilution series 
+of five measurand concentrations was prepared from the sample and a set of 
+measurement replicates were made for each dilution using three reagent lots. 
+Also, a negative pool was prepared from native specimens and tested with replication to 
+demonstrate that LoB = 0. The number of positive results observed, total number 
+of measurements made, are summarized in Table 1  <!-- \@ref(tab:table-c1) -->
+
+```{r lod-table-c1, fig.cap='Planned Dilutions Data', out.width.px=1, out.height.px=1}
+
+knitr::kable(example_data_frm %>% 
+  dplyr::filter(Conc %in% c(0, 0.025, 0.05, 0.15, 0.3, 0.5)),
+   caption='Planned Dilutions Data') %>%
+kableExtra::kable_styling(full_width = F)
+
+```
+
+
+* The results from these planned concentration levels show only one or 
+two nonzero levels with a hit rate less than 1.000. Such data do 
+not allow for fitting probit models. For this reason, two additional, 
+lower concentration levels were tested and added to the initial data. 
+The results are shown in Table 2 <!--\@ref(tab:table-c2) -->
+
+```{r lod-table-c2, fig.cap='Additional Dilutions Data', out.width.px=1, out.height.px=1}
+
+knitr::kable(example_data_frm %>%
+  dplyr::filter(Conc %in% c(0.006, 0.014)),
+   caption='Additonal Dilutions Data') %>%
+kableExtra::kable_styling(full_width = F)
+
+```
+
+* The data were reanalyzed using software for probit analysis. This 
+approach allows use of all data obtained with low level samples and 
+provides associated confidence intervals for the LoD estimates. 
+No lack of fit of the probit models was detected, using both a 
+**Pearson chi-square test** and a 
+**log-likelihood ratio chi-square test**, 
+which allowed for prediction of the LoD. 
+The results are summarized in Table C3 and the graphs of fitted probit models, 
+including 95% confidence bands for the respective fits, are shown in Figures C1, C2, and C3.
+
+<br/>
+
+## EP17-A2 Example - Probit Fits {.tabset}
+
+In this section we fit probit models to the example data and estimate the LoD for each Lot.
+We also include 90% confidence intervals around the LoD estiamates.
+
+<!-- WE DO NOT
+* Assess the lack-of-fit.
+   - How much power the lack-of-fit test has is an open question.
+-->
+
+```{r lod-probit-fits-fns, cache=F, out.width.px=1, out.height.px=1}
+
+inv_probit <- function(p, m) (qnorm(p) - coef(m)[1])/coef(m)[2]
+get_prob <- function(x, Beta) pnorm(Beta[1] + x*Beta[2])
+
+############################################
+#plot_fit_probit(example_data_frm %>% dplyr::filter(Conc > 0 & Lot==1), lot1_fit, Title='Lot 1')
+
+DEBUG <- function() {
+
+data_frm <- example_data_frm %>% dplyr::filter(Conc > 0 & Lot==1)
+fit <-  lot1_fit
+Target=0.95
+Conf=0.90
+Title='Lot 1'
+
+}#DEBUG
+
+plot_fit_probit <- function(data_frm, fit, Target=0.95, Conf=0.90, Title=NULL){
+ # Target of Detection/Hit rate for LoD
+ if(!(Target > 0  & Target < 1))
+ stop("Target should be in (0,1)")
+
+ if(!(Conf > 0  & Conf < 1))
+ stop("Conf should be in (0,1)")
+
+ # Should dalso validate data_frm and fit ...
+
+ # plot fit on probit scale
+ conc_range <- range(log10(example_data_frm$Conc+.001))
+
+ # model on probit scale
+ model_frm  <- data.frame(
+     x = seq(conc_range[1], conc_range[2], length.out=10000)) %>%
+     dplyr::mutate( y = pnorm(coef(fit)[1] +  x*coef(fit)[2]))
+  
+ with(model_frm,
+   plot(x=x, y=y, type='n', col='green', xlab='', ylab='Prob Detected',
+        xlim=conc_range, log='', ylim=c(0, 1.1), xaxt='n')
+ )
+ axis(side=1, at=log10(c(0.001, .01, .1, 1)), labels=c(0.001, .01, .1, 1))
+ abline(v=log10(c(0.001, .01, .1, 1)), col='grey')
+ abline(h=seq(.1, .9, by=.1), col='grey')
+ mtext(side=1, 'Conc', line=4)
+
+ with(model_frm,  points(x=x, y=y, type='l', col='black', lwd=3))
+ # Draw points x vs y
+ with(data_frm, points(log10(Conc), hitRate, pch=19) )
+
+ if(!is.null(Title)) title(Title)
+
+ # Add dotted line for P=Target
+ x_pTarget <- inv_probit(Target, fit)
+ segments(x0=log10(.001), x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+ segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+
+ # Pearson chi2 - NOT USED
+ pearson_chi2 <- sum(residuals(fit, type = "pearson")^2)
+
+ # Add LoD by investr::invest
+ tryCatch(
+ LDTarget_invest <- as.numeric(unlist(investr::invest(fit, y0=Target, level=Conf, interval="Wald"))[1:3])
+,  error = function(e) { LDTarget_invest <<- rep(NA,3)}
+)
+
+ # Recall plot is on conc scale
+ rug(log10(LDTarget_invest), ticksize = 0.06, side = 1, lwd = 1.0, col='blue')
+
+ LoD_text <-  sprintf("%s%s%s%s", 
+ "LoD ", round(100*Target),': ', formatC(10^x_pTarget, format = "f", digits = 3))
+ LoD_text <- sprintf("%s\n(CI: %s - %s)", LoD_text,
+                formatC((LDTarget_invest[2]), format = "f", digits = 3),
+                formatC((LDTarget_invest[3]), format = "f", digits = 3))
+
+ text(x=min(model_frm$x), y=1.0, pos=4, labels=LoD_text, col='blue')
+
+ list(Target = Target, Conf = Conf, invest = LDTarget_invest)
+ 
+}
+
+
+```
+
+<br/>
+
+### Lot 1 {-}
+
+```{r lod-probit-fit-lot-1, cache=F, out.width.px=1, out.height.px=1, fig.height=5, fig.width=6,fig.cap="Example Data Probit Fit - Lot 1"}
+
+lot1_fit <- glm(cbind(Detected, Total-Detected) ~ log10(Conc),
+ binomial(link = "probit"),
+ data = example_data_frm %>% dplyr::filter(Conc > 0 & Lot==1))
+
+lot1_LD95 <- 10^inv_probit(p=0.95, m=lot1_fit)
+
+lot1_LD95_res  <- 
+plot_fit_probit(example_data_frm %>% dplyr::filter(Conc > 0 & Lot==1), lot1_fit, Title='Lot 1')
+
+```
+
+<br/>
+
+### Lot 2 {-}
+
+```{r lod-probit-fit-lot-2, cache=F, out.width.px=1, out.height.px=1, fig.height=5, fig.width=6,fig.cap="Example Data Probit Fit - Lot 2"}
+
+lot2_fit <- glm(cbind(Detected, Total-Detected) ~ log10(Conc),
+ binomial(link = "probit"),
+ data = example_data_frm %>% dplyr::filter(Conc > 0 & Lot==2))
+
+lot2_LD95 <- 10^inv_probit(p=0.95, m=lot2_fit)
+
+lot2_LD95_red <-
+plot_fit_probit(example_data_frm %>% dplyr::filter(Conc > 0 & Lot==2), lot2_fit, Title='Lot 2')
+
+```
+
+
+<br/>
+
+### Lot 3 {-}
+
+```{r lod-probit-fit-lot-3, cache=F, out.width.px=1, out.height.px=1, fig.height=5, fig.width=6,fig.cap="Example Data Probit Fit - Lot 3"}
+
+lot3_fit <- glm(cbind(Detected, Total-Detected) ~ log10(Conc),
+ binomial(link = "probit"),
+ data = example_data_frm %>% dplyr::filter(Conc > 0 & Lot==3))
+
+lot3_LD95 <- 10^inv_probit(p=0.95, m=lot3_fit)
+
+#cat("Lot 3 LD95 =", round(lot3_LD95, 3), '\n')
+
+lot3_LD95_red <-
+plot_fit_probit(example_data_frm %>% dplyr::filter(Conc > 0 & Lot==3), lot3_fit, Title='Lot 3')
+
+```
+
+
+
+
+<br/>
+
+# Variability of LoD Estimate {#var-lod-est}
+
+In this section we will investigate the *variability of LoD estimates* from a probit fit
+to a fixed design dataset.  In accordacne with the CLSI document EP17-A2 guidance,
+we will consider datasets with 5 design points corresponding 
+to hit rates of 0.1, 0.2, 0.5, 0.9, and 0.98.  The form of the probit model used in the
+simulations come from a fit to CCGA titration data so that the simulations are
+fairly similar to actual data.  
+
+<!-- 
+In order to avoid simulated hit rates of zero and 1 from
+these design points, we will consider a large study in which each design point is measured 200
+times.  
+
+Note that it is assumed that the LoB has been established and that only the LoD is
+being studied here.
+
+-->
+
+```{r lod-sim-design-probit-2, cache=T, cache.vars=c('full_probit_design', 'full_probit_fit'), fig.height=6, fig.width=8, fig.cap="Simulation Master Design", out.width.px=1, out.height.px=1}
+
+full_probit_design <- data.frame(
+dose=c(185, 20, 230, 280, 310, 350, 400), 
+prob=c(0.1, .2, .5, .9, .98, .99, 1 ))
+
+
+# Print design
+#knitr::kable(full_probit_design, caption="Simulation Design Parameters")
+
+knitr::kable(
+t(full_probit_design %>% dplyr::mutate(dose=round(dose))),
+caption="Simulation Design Parameters (dose is conc * 1e6)"
+) %>% 
+kableExtra::kable_styling(full_width = F)
+
+data_frm <-
+do.call('rbind', lapply(1:nrow(full_probit_design), function(RR)
+data.frame(dose=full_probit_design[RR, 'dose'],
+detected = rbinom(rep(1, 20), size=1, prob=full_probit_design[RR,  'prob']))))
+
+full_probit_fit <- glm(detected ~ dose, data=data_frm, 
+   binomial(link = "probit"))
+
+
+```
+
+```{r lod-def-sim-fns, cache=F, out.width.px=1, out.height.px=1}
+# define utility functions for simulations
+
+# From hit-rate and model, get dose 
+# - used to get design points at fixed prob values
+# - also used to read out LoD from fitted model
+inv_probit <- function(p, m) (qnorm(p) - coef(m)[1])/coef(m)[2]
+
+# Given a design (dose, prob) and nSamp
+# generate nSamp rbinom variates detected in (0,1) 
+# with P(detected) = prob
+sim_data <- function (design, nSamp=20) do.call('rbind', lapply(1:nrow(design), function(RR){
+    dose <- design[RR, 'dose']
+    prob <- design[RR, 'prob']
+    data.frame(dose=dose, detected = rbinom(n=nSamp, size=1, p=prob))
+   }))
+
+
+####################################################
+plot_model <- function(design, model, Line=T, Points=F, Col='green', 
+  New=T, Xlab=T, invLink=pnorm, Ylim=c(0,1.1), Xlim=NULL){
+ # for New = T
+ #  initialize plotting figure for parameter model 
+ #  with desing points as in parameter design
+ #  optionnally add model curve to plot
+ # New = F 
+ #  is used to simply add the model curve and design points
+ #  to an already initialized figure
+ #---------------------------------------------------
+
+ dose_RANGE <- range(design$dose)
+ model_frm <- data.frame(
+    x = seq(dose_RANGE[1], dose_RANGE[2], length.out=10000)) %>%
+    dplyr::mutate( y = invLink(coef(model)[1] +  x*coef(model)[2]))
+
+ if(is.null(Xlim)) Xlim <- dose_RANGE
+
+ if(New) {
+ with(model_frm,
+  plot(x=x, y=y, type='n', col='green', xlab='', ylab='Prob Detected',
+       xlim=Xlim, log='x', ylim=Ylim, xaxt='n')
+ )
+ if(Xlab) mtext(side=1, 'dose', line=4)
+ # Add axis
+ axis(side=1, at=design$dose, labels=round(design$dose), las=1)
+ } 
+
+ # add model line
+ if(Line) 
+ with(model_frm,  points(x=x, y=y, type='l', col=Col, lwd=3))
+
+ # add model points
+ if(Points) 
+ with(design,
+ points(x=dose, y=invLink(coef(model)[1] +  dose*coef(model)[2]),
+   pch=16))
+}
+
+######################################
+get_probit_lod <- function(data_frm, Target=0.95, Conf=0.90, Plotit=F, Col='blue') {
+
+ glm_fit <- glm(detected ~ dose, data=data_frm, binomial(link = "probit"))
+
+ # plot
+if(Plotit) {
+ dose_RANGE <- range(data_frm$dose)
+ sim_fit_frm <- data.frame(
+   x = seq(dose_RANGE[1], dose_RANGE[2], length.out=10000)) %>%
+   dplyr::mutate( y = pnorm(coef(glm_fit)[1] +  x*coef(glm_fit)[2]))
+ with(sim_fit_frm, points(x=x, y=y, type='l', col=Col))
+}
+
+ # return dose at Target
+ #LD95 <- inv_probit(Target, glm_fit) 
+ #LD95
+
+ tryCatch(
+ LDTarget_invest <- as.numeric(unlist(investr::invest(glm_fit, y0=Target, level=Conf, interval='Wald'))[1:4])
+,  error = function(e) { LDTarget_invest <<- rep(NA,4)}
+)
+ names(LDTarget_invest) <- c('est', 'lo', 'hi', 'se')
+ # DEBUG
+ #(LDTarget_invest[2:3] - LDTarget_invest[1])/qnorm(p= 1 - (1-Conf)/2)
+
+ # return c('est', 'lo', 'hi', 'se')
+ LDTarget_invest
+}
+
+```
+
+
+<br/>
+
+## LoD Estimate Variability {.tabset}
+
+We simulate experiments by generating binomially distributed
+variates around a fixed model curve for all design points.
+ie. We are simulating an entire data collection exercise to
+get a sense of the variability in estimated LoDs.
+One question of interest is how the standard error that is derived from
+calibration theory - the se produced by the investr::invest function -
+relates to the empirically determined standard deviation of the estimated
+LoD computed from the simulated data.
+
+To examine the effect of sample size we will consider 3 data sets
+having N = 20, 40 and 60 points are each design points.  For each of these
+conditions we will generate 30 simulated datasets and perform the LoD
+analysis on each dataset giving rise to 30 estimated LoDs and inverse regression
+standard errors.  From the 30 estimated LoDs we can compute an SD and compare that to
+the distribution of estiamted SEs.
+
+
+
+<!--
+In the next section, we will vary observations at a single design
+point between simulated replicates.  This will give us a sense of the
+influence observations at each design point have on the LoD estimate.
+In another section we will look at the effect of measurement error 
+at verious design points.
+-->
+
+<br/>
+
+### N = 20  {-}
+
+`r REP <- 30; NSAMP <- 20`
+
+Generate and plot `r REP` instances of probit fits to full full_probit_design with N = `r NSAMP` at each design point.
+The total number of observations in each simulated data set is `r nrow(full_probit_design) * NSAMP`.
+
+```{r lod-sim-30-20-probit, cache=F, cache.vars='', fig.height=6, fig.width=8, fig.cap=paste("Simulate Full Design;", REP, 'x', NSAMP), out.width.px=1, out.height.px=1}
+
+MODEL <- "Full Design"
+fit_design <- full_probit_design 
+
+set.seed(12379)
+
+# initialize plot
+plot_model(full_probit_design, model=full_probit_fit, Line=F, Points=F)
+
+# get true_lod
+Target <- 0.95 # Targeted hit rate for LoD
+true_lod <- inv_probit(Target, full_probit_fit)
+
+# Get REP estimates of LoD for MODEL
+N20_lod_mtx <- do.call('rbind', lapply(1:REP, function(JJ) {
+ sim_frm <- sim_data(fit_design, nSamp=NSAMP)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+
+### THIS NEEDS TO BE HANDLED BETTER
+N20_lod_mtx <- N20_lod_mtx[!(rowSums(is.na(N20_lod_mtx) > 0)),]
+
+# summarize results in title
+title(paste("Probits Fits to", MODEL, "probit generated data",
+"\n", REP, 'N =', NSAMP, "simulations:",
+"Est LoD m =", round(mean(N20_lod_mtx[,1]),1), "  sd =", round(sd(N20_lod_mtx[,1]),1),
+"\nTrue LoD =", round(true_lod,1),
+ "invest SE IQR", paste(round(quantile(N20_lod_mtx[,4], prob=c(1,3)/4),1),collapse='-')))
+
+# add model line and design points for fit
+plot_model(full_probit_design, model=full_probit_fit, New=F, Line=T, Points=F)
+plot_model(fit_design, model=full_probit_fit, New=F, Line=F, Points=T)
+
+# Add dotted line for P=Target
+x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+
+
+```
+
+<br/>
+
+### N = 40  {-}
+
+`r REP <- 30; NSAMP <- 40`
+
+Generate and plot `r REP` instances of probit fits to full full_probit_design with N = `r NSAMP` at each design point.
+The total number of observations in each simulated data set is `r nrow(full_probit_design) * NSAMP`.
+
+```{r lod-sim-30-40-probit, cache=F, cache.vars='', fig.height=6, fig.width=8, fig.cap=paste("Simulate Full Design;", REP, 'x', NSAMP), out.width.px=1, out.height.px=1}
+
+MODEL <- "Full Design"
+fit_design <- full_probit_design 
+
+set.seed(12379)
+
+# initialize plot
+plot_model(full_probit_design, model=full_probit_fit, Line=F, Points=F)
+
+# get true_lod
+Target <- 0.95 # Targeted hit rate for LoD
+true_lod <- inv_probit(Target, full_probit_fit)
+
+# Get REP estimates of LoD for MODEL
+N40_lod_mtx <- do.call('rbind', lapply(1:REP, function(JJ) {
+ sim_frm <- sim_data(fit_design, nSamp=NSAMP)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+### THIS NEEDS TO BE HANDLED BETTER
+N40_lod_mtx <- N40_lod_mtx[!(rowSums(is.na(N40_lod_mtx) > 0)),]
+
+# summarize results in title
+title(paste("Probits Fits to", MODEL, "probit generated data",
+"\n", REP, 'N =', NSAMP, "simulations:",
+"Est LoD m =", round(mean( N40_lod_mtx[,1]),1), "  sd =", round(sd(N40_lod_mtx[,1]),1),
+"\nTrue LoD =", round(true_lod,1),
+ "invest SE IQR", paste(round(quantile(N40_lod_mtx[,4], prob=c(1,3)/4),1),collapse='-')))
+
+# add model line and design points for fit
+plot_model(full_probit_design, model=full_probit_fit, New=F, Line=T, Points=F)
+plot_model(fit_design, model=full_probit_fit, New=F, Line=F, Points=T)
+
+# Add dotted line for P=Target
+x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+
+```
+
+<br/>
+
+### N = 60  {-}
+
+`r REP <- 30; NSAMP <- 60`
+
+Generate and plot `r REP` instances of probit fits to full full_probit_design with N = `r NSAMP` at each design point.
+The total number of observations in each simulated data set is `r nrow(full_probit_design) * NSAMP`.
+
+```{r lod-sim-30-60, cache=F, cache.vars='', fig.height=6, fig.width=8, fig.cap=paste("Simulate Full Design;", REP, 'x', NSAMP), out.width.px=1, out.height.px=1}
+
+MODEL <- "Full Design"
+fit_design <- full_probit_design 
+
+set.seed(12379)
+
+# initialize plot
+plot_model(full_probit_design, model=full_probit_fit, Line=F, Points=F)
+
+# get true_lod
+Target <- 0.95 # Targeted hit rate for LoD
+true_lod <- inv_probit(Target, full_probit_fit)
+
+# Get REP estimates of LoD for MODEL
+N60_lod_mtx <- do.call('rbind', lapply(1:REP, function(JJ) {
+ sim_frm <- sim_data(fit_design, nSamp=NSAMP)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+### THIS NEEDS TO BE HANDLED BETTER
+N60_lod_mtx <- N60_lod_mtx[!(rowSums(is.na(N60_lod_mtx) > 0)),]
+
+
+# summarize results in title
+title(paste("Probits Fits to", MODEL, "probit generated data",
+"\n", REP, 'N =', NSAMP, "simulations:",
+"Est LoD m =", round(mean(N60_lod_mtx[,1]),1), "  sd =", round(sd(N60_lod_mtx[,1]),1),
+"\nTrue LoD =", round(true_lod,1),
+ "invest SE IQR", paste(round(quantile(N60_lod_mtx[,4], prob=c(1,3)/4),1),collapse='-')))
+
+# add model line and design points for fit
+plot_model(full_probit_design, model=full_probit_fit, New=F, Line=T, Points=F)
+plot_model(fit_design, model=full_probit_fit, New=F, Line=F, Points=T)
+
+# Add dotted line for P=Target
+x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+
+```
+
+## LoD Estimate Variability - Summary {#lod-est-var-sum}
+
+```{r lod-lod-est-var-sum, fig.cap="LoD Estimate Variability - Summary", out.width.px=1, out.height.px=1}
+
+lod_est_var_mtx <- 
+rbind(
+c(N = 20, 
+  lod_mean = round(mean(N20_lod_mtx[,1]),1),
+  lod_sd = round(sd(N20_lod_mtx[,1]),1), 
+  lod_cv = round(100 * sd(N20_lod_mtx[,1])/mean(N20_lod_mtx[,1]), 1),
+  invest_se_mean = round(mean(N20_lod_mtx[,4]),1)),
+c(N = 40,
+  lod_mean = round(mean(N40_lod_mtx[,1]),1),
+  lod_sd = round(sd(N40_lod_mtx[,1]),1),
+  lod_cv = round(100 * sd(N40_lod_mtx[,1])/mean(N40_lod_mtx[,1]), 1),
+  invest_se_mean = round(mean(N40_lod_mtx[,4]),1)),
+c(N = 60,
+  lod_mean = round(mean(N60_lod_mtx[,1]),1),
+  lod_sd = round(sd(N60_lod_mtx[,1]),1),
+  lod_cv = round(100 * sd(N60_lod_mtx[,1])/mean(N60_lod_mtx[,1]), 1),
+  invest_se_mean = round(mean(N60_lod_mtx[,4]),1)))
+
+knitr::kable(
+lod_est_var_mtx,
+caption=paste("LoD Estimate Variability - Summary: True LoD =",round(true_lod,1))
+) %>% 
+kableExtra::kable_styling(full_width = F)
+
+```
+
+
+<br/>
+
+
+# LoD Estimates by Non-parametric Local Fits {#lod-non-parm-local}
+
+The general robustness and well behaving performance of the probit fit under
+balanced designs notwithstanding, we feel it unnecessary to fit a parametric model which requires
+a design that spans the *full range of hit rates* when we are only interested in
+characterizing *performance at a particular point*, the LD95 where the
+detection rate is 95%.  We show here that as long as the test performance is
+smooth around the LD95 point, this value can be accurately estimated by linear
+interpolation and a study design requiring only a couple of design points
+close the the LD95 value is sufficient.
+
+
+
+Instead of measuring 20 sample points at 5 different design points
+that span the entire hit rate range, as is necessary to obtain a reliable
+probit fit, we propose measuring 50 samples at 2 design points selected 
+near the LD95 point, and from these data estimate the LD25 value by interpolating
+from the observed hit rates at the two design points - (D1, P1), (D2, P2):
+
+
+\begin{equation}
+\hat{LD95} = D1 + \frac{0.95 - P1}{P2 - P1} \cdot (D2 - D1)
+(\#eq:lin-inter-eq)
+\end{equation}
+
+This process can be depicted graphically as follows:
+
+```{r lod-lin-inter, cache=T, cache.vars='', fig.height=6, fig.width=8, fig.cap="Estimating LD95 By Linear Interpolation", out.width.px=1, out.height.px=1}
+
+inv_probit <- function(p, m) (qnorm(p) - coef(m)[1])/coef(m)[2]
+
+prob_vec <- c(.1, .2, .5, .9, 0.98)
+dose_vec <- inv_probit(prob_vec, full_probit_fit)
+
+full_probit_design <- data.frame(dose=dose_vec, prob=prob_vec)
+
+# initialize plot
+plot_model(full_probit_design, model=full_probit_fit, Line=T, Points=F,
+   Ylim=c(0.75, 1.1), 
+   Xlim=c(inv_probit(0.80, full_probit_fit), inv_probit(0.98, full_probit_fit))
+  )
+
+
+# get true_lod
+Target <- 0.95 # Targeted hit rate for LoD
+true_lod <- inv_probit(Target, full_probit_fit)
+
+# Add dotted line for P=Target
+x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+text(x=x_pTarget, y=0.76, paste0("LD95 = ", round(x_pTarget)), col='red',
+   pos=2)
+
+# Add linear interpolation segments
+P1 <- 0.90
+P2 <- 0.97
+D1 <- inv_probit(P1, full_probit_fit)
+D2 <- inv_probit(P2, full_probit_fit)
+
+segments(x0=D1, x1=D2, y0=P1, y1=P2, lwd=2)
+segments(x0=D1, x1=D2, y0=P1, y1=P1, lwd=2)
+segments(x0=D2, x1=D2, y0=P1, y1=P2, lwd=2)
+
+
+text(D1, .90, "(D1, P1)", pos=2)
+text(D2, .97, "(D2, P2)", pos=3)## adj=c(0, 0.5))
+
+LD95_interpol <- D1 + (Target - P1)/(P2-P1) * (D2 - D1)
+segments(x0=LD95_interpol, x1=LD95_interpol, y0=Target, y1=0, col='blue', lty=2)
+text(x=LD95_interpol, y=0.76, paste0("LD95_est = ", round(LD95_interpol)), 
+   col='blue', pos=4)
+
+
+title("Estimating LD95 By Linear Interpolation")
+
+```
+
+**Some notes**:
+
+* In relation to a probit model, or any other detection vs dose model 
+that is convex in the neighborhood of the LD95 value, an estimate by
+linear interpolation between dose values that surround the pobit model LD95
+value will produce a relatively conservative estimate - ie. greater than the
+probit fit LD95 value.
+
+* We have no reason to prefer a convex curve over a linear response
+in the neighborhood of the true LD95 value.
+
+* When P2 get close to P1, the estimate given by Equation \@ref(eq:lin-inter-eq)
+will become unstable.
+
+* The interpolation requires than we have $\hat{p_1} < 0.95 < \hat{p_2}$.
+
+* When $\hat{p_1} > \hat{p_2}$ our best estimates become 
+$\hat{p_1} = \hat{p_2} = 0.5 \cdot (\hat{p_1} + \hat{p_2})$.
+
+* When max($\hat{p_1}$, $\hat{p_2}$) < 0.95, our best estimate is LD95 = D2.
+ 
+* When min($\hat{p_1}$, $\hat{p_2}$) > 0.95, our best estimate is LD95 = D1.
+
+* $var(\hat{LD_{95}}) = (D2 - D1)^2 \cdot var(P1/(P2-P1))$
+    - to get $var(P1/(P2-P1))$ we can use a Taylor series expansion approximation
+(Wolter (1985) [@Wolter:1985aa]:
+
+\begin{equation}
+
+var(\frac{X}{Y})  \approx  \frac{var(X)}{\mu_Y^2} - \frac{2\mu_X}{\mu_Y^3} cov(X,Y) + \frac{\mu_X^2}{\mu_Y^4}var(Y) \\
+                  =  \left( \frac{\mu_X}{\mu_Y} \right)^2 \left( \frac{var(X)}{\mu_X^2} + \frac{var(Y)}{\mu_Y^2}
+  - 2 \frac{cov(X,Y)}{\mu_X \mu_Y} \right)
+ 
+(\#eq:var-x-over-y-eq)
+\end{equation}
+
+
+***
+
+The following table summarizes LoD estimates from 30 simulated replications of these 2-design point
+data sets  for different values of (D1, P1) and (D2, P2). 
+
+```{r lod-sim-2point-designs, out.width.px=1, out.height.px=1}
+
+near_lod_prob_vec <- seq(from=.90,  to=.99, by=.03)
+
+near_lod_dose_vec <- inv_probit(near_lod_prob_vec, full_probit_fit)
+
+near_lod_probit_design <- data.frame(rbind(
+ c(P1=0.90, P2=0.98, 
+   D1=inv_probit(0.90, full_probit_fit)[[1]], D2=inv_probit(0.98, full_probit_fit)[[1]]),
+ c(P1=0.92, P2=0.98, 
+   D1=inv_probit(0.92, full_probit_fit)[[1]], D2=inv_probit(0.98, full_probit_fit)[[1]]),
+ c(P1=0.93, P2=0.97, 
+   D1=inv_probit(0.93, full_probit_fit)[[1]], D2=inv_probit(0.97, full_probit_fit)[[1]])))
+
+
+set.seed(12379)
+Target <- 0.95 # Targeted hit rate for LoD
+
+near_lod_sim_results_frm <- data.frame()
+
+for(RR in 1:nrow(near_lod_probit_design)) {
+#print(RR)
+  D1 <- near_lod_probit_design[RR,'D1']
+  D2 <- near_lod_probit_design[RR,'D2']
+  P1 <- near_lod_probit_design[RR,'P1']
+  P2 <- near_lod_probit_design[RR,'P2']
+
+ LD95_est_vec <- do.call('c', lapply(1:REP, function(JUNK) {
+#print(JUNK)  
+  D1_sim_data <- rbinom(n=50, size=1, p=P1)
+  D2_sim_data <- rbinom(n=50, size=1, p=P2)
+  P1_sim <- mean(D1_sim_data)
+  P2_sim <- mean(D2_sim_data)
+
+  if(P2_sim <= P1_sim) {
+     P1_sim = mean(P1_sim, P2_sim)
+     P2_sim = mean(P1_sim, P2_sim)
+  }
+
+  if(P1_sim < Target & P2_sim > Target)
+  LD95_est <- D1 + (D2 - D1) * (Target - P1_sim)/(P2_sim-P1_sim)  else
+  if(max(P1_sim, P2_sim) < Target) LD95_est <- D1 else 
+  if(min(P1_sim, P2_sim) > Target) LD95_est <- D2 else stop("we should never get here")
+  LD95_est
+ }))
+
+ near_lod_sim_results_frm <- rbind(near_lod_sim_results_frm,
+ data.frame(
+  D1=round(D1), D2=round(D2), P1=P1, P2=P2,
+  est_mean = round(mean(LD95_est_vec),1),
+  est_sd = round(sd(LD95_est_vec),1)))
+
+}
+  #q = round(t(quantile(LD95_est_vec, prob=c(1:3/4))))
+
+true_lod <- inv_probit(Target, full_probit_fit)
+  
+knitr::kable(
+#cat("2 design points simulation results: True LD95 =", round(true_lod), '\n')
+near_lod_sim_results_frm,
+caption=paste("2 design points simulation results: True LD95 =", round(true_lod))
+) %>%
+kableExtra::kable_styling(full_width = F)
+
+
+```
+
+For comparison, recall the characteristcis of LoD estimates from an
+equivalent probit model analysis:
+
+```{r lod-recall-probit-fit-n20, out.width.px=1, out.height.px=1}
+
+knitr::kable(
+lod_est_var_mtx[1,1:3,drop=F],
+caption=paste("Probit fit LoD Estimate Variability: True LoD =",round(true_lod,1))
+) %>%
+kableExtra::kable_styling(full_width = F)
+
+```
+
+<!-- DEBUG
+## Look at linear interpolation details
+
+### .90 - .93
+-->
+```{r lod-debug, out.width.px=1, out.height.px=1, eval=F, echo=F}
+
+Target <- 0.95 # Targeted hit rate for LoD
+II <- 1
+JJ <- 2
+sim_frm <- sim_data(near_lod_probit_design[c(II, JJ),], nSamp=50)
+
+
+LD95_est_lst <- lapply(1:REP, function(JUNK) {
+  sim_frm <- sim_data(near_lod_probit_design[c(II, JJ),], nSamp=50)
+  sim_detect_rates <- with(sim_frm, sapply(split(detected, dose), mean))
+  design_points <- as.numeric(names(sim_detect_rates))
+ 
+  if(diff(sim_detect_rates) > 0)
+  LD95_est <- design_points[1] + diff(design_points) * (Target - sim_detect_rates[1])/diff(sim_detect_rates)  else
+  LD95_est <- mean(design_points)
+
+  list(LD95_est=LD95_est, design=design_points, prob=near_lod_probit_design[c(II, JJ),"prob"],
+       detect_rate=sim_detect_rates)
+ })
+
+
+# Look at these graphically
+
+# Plot background curve
+#######################
+inv_probit <- function(p, m) (qnorm(p) - coef(m)[1])/coef(m)[2]
+prob_vec <- c(.1, .2, .5, .9, 0.98)
+dose_vec <- inv_probit(prob_vec, full_probit_fit)
+
+full_probit_design <- data.frame(dose=dose_vec, prob=prob_vec)
+
+# initialize plot
+plot_model(full_probit_design, model=full_probit_fit, Line=T, Points=F,
+   Ylim=c(0.75, 1.1),
+   Xlim=c(inv_probit(0.80, full_probit_fit), inv_probit(0.98, full_probit_fit))
+  )
+
+
+# Add dotted line for P=Target
+x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+text(x=x_pTarget, y=0.76, paste0("LD95 = ", round(x_pTarget)), col='red',
+   pos=2)
+
+# Add linear interpolation segments for all simulations
+#######################
+
+D1 <- LD95_est_lst[[1]]$design[1]
+D2 <- LD95_est_lst[[1]]$design[2]
+exp_P1 <- LD95_est_lst[[1]]$prob[1]
+exp_P2 <- LD95_est_lst[[1]]$prob[2]
+
+for(KK in 1:length(LD95_est_lst)) {
+ P1 <- LD95_est_lst[[KK]]$detect_rate[1]
+ P2 <- LD95_est_lst[[KK]]$detect_rate[2]
+
+ segments(x0=D1, x1=D2, y0=P1, y1=P2, lwd=2, col=KK)
+ segments(x0=D1, x1=D2, y0=P1, y1=P1, lwd=2, col=KK)
+ segments(x0=D2, x1=D2, y0=P1, y1=P2, lwd=2, col=KK)
+
+}
+
+text(D1, .90, "(D1, P1)", pos=2)
+text(D2, .97, "(D2, P2)", pos=3)## adj=c(0, 0.5))
+
+LD95_interpol <- D1 + (Target - P1)/(P2-P1) * (D2 - D1)
+segments(x0=LD95_interpol, x1=LD95_interpol, y0=Target, y1=0, col='blue', lty=2)
+text(x=LD95_interpol, y=0.76, paste0("LD95_est = ", round(LD95_interpol)),
+   col='blue', pos=4)
+
+
+title("Estimating LD95 By Linear Interpolation")
+
+}
+```
+
+<br/>
+
+# References {#references}
+
+CLSI documents on GRAIL shared drive can be accessed 
+[here](https://drive.google.com/drive/folders/0B9btJZT36cFKbm5fZUxlTXZaSEk?resourcekey=0-0_qdmTP58DDJpfqUq-_Vyg).
+
+<div id="refs"></div>
+
+
+
+# Reproducibility
+
+```{r , out.width.px=1, out.height.px=1, eval=T}
+pander::pander(sessionInfo())
+```
+
+
+```{r, echo=FALSE, out.width.px=1, out.height.px=1}
+  knit_exit()
+```
+
+
+####################################################################################
+## ARCHIVAL CODE 
+####################################################################################
+<br/>
+
+# Appendix A
+
+
+<br/>
+
+## Confidence intervals for p close to 0 or 1
+
+The R package [binom](https://rdrr.io/cran/binom/)  offers eight different methods to obtain a confidence interval on
+the binomial probability.  Some methods are better than others especially when
+the asymptitic normality assumption is invalid or p is close to or 1.
+Details for some derivations can be found [here](./Refs/binom.pdf).
+
+
+
+<br/>
+
+## Examples {.tabset}
+
+<br/>
+
+### n=20 {-}
+```{r lod-binom-confint-20, out.width.px=1, out.height.px=1}
+
+cat("binom::binom.confint(x=20, n=20, conf.level=0.90)\n")
+binom::binom.confint(x=20, n=20, conf.level=0.90)
+
+```
+
+<br/>
+
+### n=25 {-}
+```{r lod-binom-confint-25, out.width.px=1, out.height.px=1}
+
+cat("binom::binom.confint(x=25, n=25, conf.level=0.90)\n")
+binom::binom.confint(x=25, n=25, conf.level=0.90)
+
+```
+
+<br/>
+
+### n=50 {-}
+```{r lod-binom-confint-50, out.width.px=1, out.height.px=1}
+
+cat("binom::binom.confint(x=50, n=50, conf.level=0.90)\n")
+binom::binom.confint(x=50, n=50, conf.level=0.90)
+
+```
+
+<br/>
+
+### n=60 {-}
+```{r lod-binom-confint-60, out.width.px=1, out.height.px=1}
+
+cat("binom::binom.confint(x=60, n=60, conf.level=0.90)\n")
+binom::binom.confint(x=60, n=60, conf.level=0.90)
+
+```
+
+<br/>
+
+### n=75 {-}
+```{r lod-binom-confint-75, out.width.px=1, out.height.px=1}
+
+cat("binom::binom.confint(x=75, n=75, conf.level=0.90)\n")
+binom::binom.confint(x=75, n=75, conf.level=0.90)
+
+```
+
+<br/>
+
+## Additional references
+
+* [Probit Analysis, Part One - Westgard](https://www.westgard.com/probit-part-one.htm)
+provides a practical guide analysis relating to limit of detection.
+
+* [UCLA - PROBIT REGRESSION | R DATA ANALYSIS EXAMPLES](https://stats.idre.ucla.edu/r/dae/probit-regression/)  
+
+* [ecotox](https://cran.r-project.org/web/packages/ecotox/readme/README.html) is 
+an R package providing a simple approach to using either probit or 
+logit analysis to calculate lethal concentration (LC) or time (LT) and the 
+appropriate fiducial confidence limits desired for selected LC or LT for ecotoxicology studies
+[@Finney:1972aa;@Wheeler:2006aa;@Robertson:2007aa].  We use this package here
+to obtain *fiducial confidence limits* around `LD95`.
+
+* [probit model - calculate standard error for mean ED50](https://stackoverflow.com/questions/29205349/probit-model-calculate-standard-error-for-mean-ed50) has discussion and code.
+
+* [Challenges in the Evaluation of Detection Capabilities for an NGS Oncology Assay](https://f.hubspotusercontent30.net/hubfs/2632886/Stats%20Paul%20Wenz%20New%20Trends%20and%20Statistical%20Challenges%202021%20final.pdf)
+is a description of how to characterize the detection capability (C95) of a next generation 
+sequencing-based assay across a very large number of variants
+from a senior staff biostatistician at Illumina (Paul Wentz).
+   - (Also [here](https://drive.google.com/file/d/1Uti8RDTRtRau0FFYbhEFf8v-sMT1wYuv/view?usp=sharing).)
+
+
+<br/>
+
+
+<br/>
+<br/>
+
+
+### Examine Design  - tabular summary {-}
+
+
+
+```{r lod-look-design-table, cache=F, cache.vars='data_frm', out.width.px=1, out.height.px=1, fig.cap="MVAF dataset Structure"}
+
+knitr::kable(
+with(data_frm, table(af=dose, participant_id, exclude=NULL)),
+caption="Rows=titration af")
+
+```
+
+<br/>
+
+### Examine Design  - graphical summary {-}
+
+```{r lod-look-design-plot, cache=F, cache.vars='data_frm', fig.height=6, fig.width=8, out.width.px=1, out.height.px=1, fig.cap="MVAF dataset Structure"}
+
+af.lst <- with(data_frm, split(dose, sub('_','\n', participant_id)))
+detected.lst <- with(data_frm, split(detected, sub('_','\n', participant_id)))
+status.lst <- with(data_frm, split(status, sub('_','\n', participant_id)))
+ID.lst <- with(data_frm, split(ID, sub('_','\n', participant_id)))
+
+boxplot(af.lst, outline=F, border=0, las=1, ylim=c(1e-06 , .05), log='y')
+for(JJ in 1:length(af.lst))
+points(x=jitter(rep(JJ, length(af.lst[[JJ]])), amount=0.10), y=af.lst[[JJ]],
+  #pch=detectedPch_vec[detected.lst[[JJ]]],
+  pch=IDPch_vec[ID.lst[[JJ]]],
+  col=IDCol_vec[ID.lst[[JJ]]])
+title(ylab="AF", xlab="Participant", main="MVAF dataset Structure\njitter added to see points")
+
+#legend(x=0.5, y=1e-5, text.col=statusCol_vec, legend=names(statusCol_vec),bty='n')
+#legend(x=2.0, y=1.1e-5, title='Detected', pch=detectedPch_vec, legend=names(detectedPch_vec), bty='n')
+
+
+```
+
+
+***
+
+<br/>
+<br/>
+
+### Design Summary  {-}
+
+
+Features of the dataset:  
+
+* Dataset contains 5 cancer participants and a non-cancer pool.  
+
+* Each cancer participants  contributes 2 undiluted points and  20 points at 2 other dilution levels.
+
+* There are no classification errors - all samples are correctly classified.
+
+***
+
+<br/>
+<br/>
+
+## Probit fit to CCGA titration 
+
+In this and the next section, we fit probit and logit models to these data.
+We note that the design of this data set does not support the use of probit or logit
+model fits for the purpose of estimating the limit of detection point as
+there are no design points with hit rates in the desirabel range - 
+the recommended desgin for data sets to support probit fits for LoD estimation
+is one that includes three dosages in the range corresponding to the probability or hit rate
+range between 0.1 and 0.9 (CLSI document EP17-A2 [@CLSI-EP17A2:2012aa]).
+Ideally one would collect several independent observations of the test results at 
+or near the C95 value and observe a hit rates near the targeted detection level (eg. 0.95).  
+
+
+
+### Probit fit
+
+
+```{r lod-probit-fit-detect, cache=F, out.width.px=1, out.height.px=1}
+
+
+full_probit_fit <- glm(detected ~ dose,
+                data = data_frm, binomial(link = "probit"))
+
+full_probit_fit
+
+```
+
+<br/>
+
+### Plot data and probit fit 
+
+```{r lod-plot-probit-fit, cache=F, fig.height=6, fig.width=8, fig.cap="Detection Probit Fit", out.width.px=1, out.height.px=1}
+
+inv_probit <- function(p, m) (qnorm(p) - coef(m)[1])/coef(m)[2]
+
+full_probit_fitted_frm <- data.frame(x = seq(from=1e-7, to=0.1, length.out = 10000)) %>%
+  dplyr::mutate(y = pnorm(coef(full_probit_fit)[1] + x*coef(full_probit_fit)[2], mean = 0, sd = 1))
+
+# PLOT
+with(full_probit_fitted_frm, 
+plot(x=x, y=y, type='l', col='blue', xlab='dose', ylab="Prob Detected",
+   xlim=c(1e-6, 1.1e-1), log='x', ylim=c(-0.1, 1.1), xaxt='n')
+)
+abline(v=10^-(1:6), col='grey')
+axis(side=1, at=10^-(1:6))
+
+with(data_frm,
+points(x=dose, y=jitter(detected, amount=0.05),
+col=IDCol_vec[ID], pch=IDPch_vec[ID])
+)
+
+title("Probit Model Fit for dose - Cancer Detection")
+
+# Add dotted line for P=p=0.95
+Target <- 0.95 # Targeted hit rate for LoD
+
+x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#text(x=1e-3, y=0, expression(paste("x = ", (Phi^{-1}  (-.95) - beta)/alpha, " = ") , round(100*x_pTarget,3)))
+axis(side=1, at=x_pTarget, label='', col='red')
+text(x=x_pTarget, y=-0.1, pos=3, paste0(round(100*x_pTarget, 4),'%'), col='red')
+
+
+legend('bottomright', title='Participant', legend=names(IDCol_vec), 
+col=IDCol_vec, pch=IDPch_vec)
+
+
+```
+
+
+<br/>
+
+## Logit fit to CCGA titration 
+
+Next fit a logit model to these data.
+
+
+Recall logit model for success rate, coded as $Y=1$, given a covariate design $X$:
+
+\begin{equation}
+P(Y=1 | X) = \frac{1}{1 + e^{-X \cdot B}}
+(\#eq:logit-eq1)
+\end{equation}
+
+
+In the simple case of a single covariate, this reduces to:
+
+\begin{equation}
+P(Y=1 | x) = \frac{1}{1 + e^{ \alpha + \beta \cdot x}}
+(\#eq:logit-eq2)
+\end{equation}
+
+To find $x$ correspodng to a given probability of success $p$:
+\begin{equation}
+ln(\frac{p}{1-p}) = \alpha + \beta \cdot x   \\
+x = \frac{ln(\frac{p}{1-p}) - \alpha}{\beta}
+(\#eq:inv-logit-eq)
+\end{equation}
+
+
+<br/>   
+
+
+### Logit fit
+
+
+```{r lod-logit-fit-mvafDetect, cache=F, out.width.px=1, out.height.px=1}
+
+
+mvafDetect_logit_fit <- glm(detected ~ dose,
+                data = data_frm, binomial(link = "logit"))
+
+mvafDetect_logit_fit
+
+```
+
+
+<br/>
+
+### Plot data and logit fit 
+
+```{r lod-plot-logit-fit, cache=F, fig.height=6, fig.width=8, fig.cap="MVAF Detection Logit Fit", out.width.px=1, out.height.px=1}
+
+inv_logit <- function(p, m) (log(p/(1-p)) - coef(m)[1])/coef(m)[2]
+logistic <- function(x) 1/(1+exp(-x))
+
+mvafDetect_logit_fitted_frm <- data.frame(x = seq(from=1e-7, to=0.1, length.out = 10000)) %>%
+  dplyr::mutate(y = logistic(coef(mvafDetect_logit_fit)[1] + x*coef(mvafDetect_logit_fit)[2]))
+
+# PLOT
+with(mvafDetect_logit_fitted_frm, 
+plot(x=x, y=y, type='l', col='blue', xlab='dose', ylab="Prob Detected",
+   xlim=c(1e-6, 1.1e-1), log='x', ylim=c(-0.1, 1.1), xaxt='n')
+)
+abline(v=10^-(1:6), col='grey')
+axis(side=1, at=10^-(1:6))
+
+with(data_frm,
+points(x=dose, y=jitter(detected, amount=0.05),
+col=IDCol_vec[ID], pch=IDPch_vec[ID])
+)
+
+title("Logit Model Fit for dose - Cancer Detection")
+
+# Add dotted line for P=Target
+Target <- 0.95 # Targeted hit rate for LoD
+
+x_pTarget <- inv_logit(Target, mvafDetect_logit_fit)
+segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#text(x=1e-3, y=0, expression(paste("x = ", (Phi^{-1}  (-.95) - beta)/alpha, " = ") , round(100*x_pTarget,3)))
+axis(side=1, at=x_pTarget, label='', col='red')
+text(x=x_pTarget, y=-0.1, pos=3, paste0(round(100*x_pTarget, 4),'%'), col='red')
+
+
+legend('bottomright', title='Participant', legend=names(IDCol_vec), 
+col=IDCol_vec, pch=IDPch_vec)
+
+
+```
+
+<br/>
+
+### Probit vs Logit
+
+
+Note that the differences between the pobit and logit fits observed here
+are due to the lack of design points at hit rates between 0 and 1.
+In Section \@ref(lod-misspec-model) we see that a probit model fitted to
+data generated from a logit model estimates the LoD accurately in spite of
+the model being misspecified.
+
+
+```{r lod-plot-probit-logit-fit, cache=F, fig.height=6, fig.width=8, fig.cap="Probit vs Logit Fit", out.width.px=1, out.height.px=1}
+
+Target <- 0.95 # Targeted hit rate for LoD
+
+inv_logit <- function(p, m) (log(p/(1-p)) - coef(m)[1])/coef(m)[2]
+
+logistic <- function(x) 1/(1+exp(-x))
+
+mvafDetect_logit_fitted_frm <- data.frame(x = seq(from=1e-7, to=0.1, length.out = 10000)) %>%
+  dplyr::mutate(y = logistic(coef(mvafDetect_logit_fit)[1] + x*coef(mvafDetect_logit_fit)[2]))
+
+full_probit_fitted_frm <- data.frame(x = seq(from=1e-7, to=0.1, length.out = 10000)) %>%
+  dplyr::mutate(y = pnorm(coef(full_probit_fit)[1] + x*coef(full_probit_fit)[2], mean = 0, sd = 1))
+
+# PLOT logit - blue
+with(mvafDetect_logit_fitted_frm, 
+plot(x=x, y=y, type='l', lwd=2, col='blue', 
+   xlab='dose', ylab="Prob Detected",
+   xlim=c(1e-4, 5e-4), log='x', ylim=c(-0.1, 1.1))
+)
+abline(h=Target, col='red')
+
+# Add dotted line for P=Target - logit
+logit_x_pTarget <- inv_logit(Target, mvafDetect_logit_fit)
+segments(x0=logit_x_pTarget, x1=logit_x_pTarget, y0=Target, y1=0, col='blue', lty=2)
+text(x=logit_x_pTarget, y=-0.05, pos=3, paste0(round(100*logit_x_pTarget, 4),'%'), col='blue')
+
+
+# ADD probit - green
+with(full_probit_fitted_frm,
+points(x=x, y=y, type='l', lwd=2, col='green'))
+
+# Add dotted line for P=Target - logit
+probit_x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=probit_x_pTarget, x1=probit_x_pTarget, y0=Target, y1=0, col='green', lty=2)
+text(x=probit_x_pTarget, y=-0.1, pos=3, paste0(round(100*probit_x_pTarget, 4),'%'), col='green')
+
+
+legend('topleft', legend=c("Logit","Probit"), col=c('blue', 'green'), lwd=2, bty='n')
+title("Probit vs Logit Fit")
+
+```
+
+
+<br/>
+<br/>
+
+
+<!-- SKIP ALL THIS
+
+<br/>
+
+### Notes on simulated data:
+
+* The data from the titration study has repeated measured from a few subjects 
+and as such the numbers analyzed do not reflect the variability that will be 
+encountered when points are sampled from a population.
+
+* In simulating the data, we have to assume the probit model holds (Equation \@ref(eq:probit-eq2))
+
+Referring back to Figure \@ref(fig:lod-plot-fit-mvaf-detection-data) we see that all 
+simulations of data at the same design points will produce identical results
+as the fitted probabilities are 0 or 1 - ie.  there is no randomness in that model.
+
+-->
+
+
+```{r lod-mvaf-range,out.width.px=1, out.height.px=1}
+
+dose_RANGE <- c(1e-4, 3.7e-4)
+dose_vec <- c(seq(dose_RANGE[1], dose_RANGE[2], length.out=10))###, 3.8e-4, 3.9e-4, 4e-4)
+
+```
+
+<br/>
+
+# Appendix C - Effect of design on probit fit {#effect-design-probit-fit}
+
+
+We will simulate data from a probit model using various design points and refit the model
+several times to assess bias and variability.  These simulations only look at the effect
+of removing points from the design, and is a perfect world in which we know perfectly
+well the data generating model.   Other questions of interest inclue 
+assessing the effect of variability and meassurement error at a given design point 
+on the assessed LoD estimate and the effect of model mis-specification -
+eg. fitting a probit model when the data generating process follows a logit model.  
+These questions are assessed in sections further below.
+
+ 
+
+The designs considered in this section  will include:
+
+* Some dose points with model probabilities close to 0 and 1:  
+   - dose% = 100 * inv_probit(1e-4, full_probit_fit) = `r 100*inv_probit(1e-4, full_probit_fit) ` 
+(or `r round( inv_probit(1e-4, full_probit_fit))` on dose scale).
+
+   - dose% = 100 * inv_probit(1-1e-4, full_probit_fit) = `r 100*inv_probit(1-1e-4, full_probit_fit) ` 
+(or `r round( inv_probit(1-1e-4, full_probit_fit))` on dose scale).
+
+* Some dose points further than these extremes.
+
+* Dose points corresponding to model probabilities of .10, .5 and 0.90
+(CLSI document EP17-A2 [@CLSI-EP17A2:2012aa]).
+
+**Note on dose/dose units** - we will use dose * 1e6 as AF units in order to avoid decimals and leading zeroes.
+
+```{r lod-sim-design, cache=T, cache.vars=c('full_probit_design'), fig.height=6, fig.width=8, fig.cap="Simulation Master Design", out.width.px=1, out.height.px=1}
+
+# given a model and hit-rate, get dose/dose
+inv_probit <- function(p, m) (qnorm(p) - coef(m)[1])/coef(m)[2]
+
+# get design dose points
+dose_vec <- c(c(0.5, 1) * inv_probit(1e-4, full_probit_fit),
+              inv_probit(c(.1, .5, .9), full_probit_fit),
+              c(1, 2) * inv_probit(1-1e-4, full_probit_fit) )
+
+# In assembling full_probit_design we re-compute prob values
+# - note that not the two extreme dose_vec values are relative to 
+#   to other dose values and not derived from a specified prob value
+full_probit_design <- data.frame(
+   dose=dose_vec, 
+   prob=pnorm(coef(full_probit_fit)[1] +  dose_vec*coef(full_probit_fit)[2])
+ )
+
+
+# Print design
+#knitr::kable(full_probit_design, caption="Simulation Design Parameters")
+
+cat("Simulation Design Parameters\n")
+full_probit_design %>% dplyr::mutate(dose = round( dose)) 
+
+#knitr::kable(full_probit_design, caption="Simulation Design Parameters")
+
+# Plot design
+full_probit_design_frm <- data.frame(
+   x = with(full_probit_design, seq(min(dose), max(dose), length.out=10000))) %>%
+   dplyr::mutate( y = pnorm(coef(full_probit_fit)[1] +  x*coef(full_probit_fit)[2]))
+
+with(full_probit_design_frm,
+ plot(x=x, y=y, type='l', lwd=2, col='green', xlab='dose * 1e6', ylab='Prob Detected',
+      xlim=range(full_probit_design_frm$x), log='x', ylim=c(-0.1, 1.1), xaxt='n')
+)
+axis(side=1, at=pretty(full_probit_design_frm$x), labels=round(pretty(full_probit_design_frm$x)))
+
+with(full_probit_design, points(dose, prob, pch=19))
+
+```
+
+
+We will fit models to simulated data from various subsets of this design
+to see the effect on LoD estimates.
+
+<br/>
+
+## Effect of design on probit fit - Summary
+
+* Unless the design included a design point near the LoD,
+the probit fits to the models considered produced biased estimates of the
+LoD resulting in *under-estimating* the true LoD.
+
+* Fitting probit models to data containing hit rates of 0 or 1, as was done in these
+simultions, is problematic leading to occasional outliers or invalid results due
+to the fitting algorithm not converging. For a nice discussion of the issue
+of linear separation see
+[this post](https://stat.ethz.ch/pipermail/r-help/2012-March/307352.html).  
+
+<br/>
+
+## Run Simulations {.tabset}
+
+<br/>
+
+### Full Design {-}
+
+`r REP <- 30; NSAMP <- 20`
+
+Will run `r REP` simulations of full design with `r NSAMP` observations
+at each design point.
+
+```{r lod-def-sim-full-design, cache=F, fig.height=6, fig.width=8, fig.cap="Probit Fits to Simulated Data - Full Design", out.width.px=1, out.height.px=1, warning=F, message=F}
+
+MODEL <- "full model"
+fit_design <- full_probit_design
+
+set.seed(12379)
+
+# initialize plot
+plot_model(full_probit_design, model=full_probit_fit, Line=F, Points=F)
+
+# get true_lod
+true_lod <- inv_probit(Target, full_probit_fit)
+
+# Get REP estimates of LoD for MODEL
+lod_vec <- do.call('c', lapply(1:REP, function(JJ) {
+ sim_frm <- sim_data(fit_design, nSamp=NSAMP)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+# summarize results in title
+title(paste("Probits Fits to", MODEL, "probit generated data",
+"\n", REP, 'x', NSAMP, "simulations:",
+"Est LoD m =", round(mean( lod_vec),1), "  sd =", round(sd( lod_vec),1),
+"\nTrue LoD =", round(true_lod,1)))
+
+# add model line and design points for fit
+plot_model(full_probit_design, model=full_probit_fit, New=F, Line=T, Points=F)
+plot_model(fit_design, model=full_probit_fit, New=F, Line=F, Points=T)
+
+# Add dotted line for P=Target
+Target <- 0.95 # Targeted hit rate for LoD
+
+x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+
+```
+
+
+<br/>
+
+### Alt 1 {-}
+
+* Remove Outer Design Points 
+
+<br/>
+
+
+```{r lod-def-sim-shrunken-design, cache=F, fig.height=6, fig.width=8, fig.cap="Simulation - Reduced Dose Range Design", out.width.px=1, out.height.px=1, warning=F, message=F}
+
+Target <- 0.95 # Targeted hit rate for LoD
+
+MODEL <- "full model minus outer points"
+fit_design <- full_probit_design %>% dplyr::filter(!dose %in% range(dose))
+
+set.seed(12379)
+
+# initialize plot
+plot_model(full_probit_design, model=full_probit_fit, Line=F, Points=F)
+
+# get true_lod
+true_lod <- inv_probit(Target, full_probit_fit)
+
+# Get REP estimates of LoD for MODEL
+lod_vec <- do.call('c', lapply(1:REP, function(JJ) {
+ sim_frm <- sim_data(fit_design, nSamp=NSAMP)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+
+# summarize results in title
+title(paste("Probits Fits to", MODEL, "probit generated data",
+"\n", REP, 'x', NSAMP, "simulations:",
+"Est LoD m =", round(mean( lod_vec),1), "  sd =", round(sd( lod_vec),1),
+"\nTrue LoD =", round(true_lod,1)))
+
+
+# add model line and design points for fit
+plot_model(full_probit_design, model=full_probit_fit, New=F, Line=T, Points=F)
+plot_model(fit_design, model=full_probit_fit, New=F, Line=F, Points=T)
+
+# Add dotted line for P=Target
+Target <- 0.95 # Targeted hit rate for LoD
+
+x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+
+
+```
+
+<br/>
+
+### Alt 2 {-}
+
+* Design with internal dose at hit rate 0.5 only
+
+<br/>
+
+
+```{r lod-def-sim-design-3, cache=F, fig.height=6, fig.width=8, fig.cap="Simulation - Internally Reduced and Restricted Dose Range Design", out.width.px=1, out.height.px=1, warning=F, message=F}
+
+Target <- 0.95 # Targeted hit rate for LoD
+
+MODEL <- "design with internal dose at hit rate 0.5 only"
+fit_design <- full_probit_design %>% 
+  dplyr::filter(!dose %in% range(dose)) %>%
+  dplyr::filter(! round(prob,1) %in% c(.1, .9))
+
+set.seed(12379)
+ 
+# initialize plot 
+plot_model(full_probit_design, model=full_probit_fit, Line=F, Points=F)
+
+# get true_lod
+true_lod <- inv_probit(Target, full_probit_fit)
+
+# Get REP estimates of LoD for MODEL
+lod_vec <- do.call('c', lapply(1:REP, function(JJ) {
+ sim_frm <- sim_data(fit_design, nSamp=NSAMP)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+
+# summarize results in title
+title(paste("Probits Fits to", MODEL, "probit generated data",
+"\n", REP, 'x', NSAMP, "simulations:",
+"Est LoD m =", round(mean( lod_vec),1), "  sd =", round(sd( lod_vec),1),
+"\nTrue LoD =", round(true_lod,1)))
+
+# add model line and design points for fit
+plot_model(full_probit_design, model=full_probit_fit, New=F, Line=T, Points=F)
+plot_model(fit_design, model=full_probit_fit, New=F, Line=F, Points=T)
+
+# Add dotted line for P=Target
+x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+
+
+
+```
+
+<br/>
+
+### Alt 3 {-}
+
+* Design with internal dose at hit rate 0.5 only with additional
+design points at the extremes.  
+
+<br/>
+
+
+```{r lod-def-sim-design-4, cache=F, fig.height=6, fig.width=8, fig.cap="Simulation - Internally Reduced Dose Range Design", out.width.px=1, out.height.px=1, warning=F, message=F}
+
+Target <- 0.95 # Targeted hit rate for LoD
+
+
+MODEL <- "design with internal dose at hit rate 0.5 only with extended dose range"
+fit_design <- full_probit_design %>%
+  dplyr::filter(! round(prob,1) %in% c(.1, .9))
+
+set.seed(12379)
+
+# initialize plot
+plot_model(full_probit_design, model=full_probit_fit, Line=F, Points=F)
+
+# get true_lod
+true_lod <- inv_probit(Target, full_probit_fit)
+
+# Get REP estimates of LoD for MODEL
+lod_vec <- do.call('c', lapply(1:REP, function(JJ) {
+ sim_frm <- sim_data(fit_design, nSamp=NSAMP)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+
+# summarize results in title
+title(paste("Probits Fits to", MODEL, "probit generated data",
+"\n", REP, 'x', NSAMP, "simulations:",
+"Est LoD m =", round(mean( lod_vec),1), "  sd =", round(sd( lod_vec),1),
+"\nTrue LoD =", round(true_lod,1)))
+
+# add model line and design points for fit
+plot_model(full_probit_design, model=full_probit_fit, New=F, Line=T, Points=F)
+plot_model(fit_design, model=full_probit_fit, New=F, Line=F, Points=T)
+
+# Add dotted line for P=Target
+x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+
+
+```
+
+
+<br/>
+
+### Alt 4 {-}
+
+* Keep internal dose corresponding to hit rate 0.9 only.
+
+<br/>
+
+
+```{r lod-def-sim-design-5, cache=F, fig.height=6, fig.width=8, fig.cap="Simulation - Internally Reduced Dose Range Design", out.width.px=1, out.height.px=1, warning=F, message=F}
+
+Target <- 0.95 # Targeted hit rate for LoD
+
+MODEL <- "design with internal dose at hit rate 0.9 only"
+fit_design <- full_probit_design %>%
+  dplyr::filter(! round(prob,1) %in% c(.1, .5))
+
+
+set.seed(12379)
+
+# initialize plot
+plot_model(full_probit_design, model=full_probit_fit, Line=F, Points=F)
+
+# get true_lod
+true_lod <- inv_probit(Target, full_probit_fit)
+
+# Get REP estimates of LoD for MODEL
+lod_vec <- do.call('c', lapply(1:REP, function(JJ) {
+ sim_frm <- sim_data(fit_design, nSamp=NSAMP)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+
+# summarize results in title
+title(paste("Probits Fits to", MODEL, "probit generated data",
+"\n", REP, 'x', NSAMP, "simulations:",
+"Est LoD m =", round(mean( lod_vec),1), "  sd =", round(sd( lod_vec),1),
+"\nTrue LoD =", round(true_lod,1)))
+
+# add model line and design points for fit
+plot_model(full_probit_design, model=full_probit_fit, New=F, Line=T, Points=F)
+plot_model(fit_design, model=full_probit_fit, New=F, Line=F, Points=T)
+
+# Add dotted line for P=Target
+x_pTarget <- inv_probit(Target, full_probit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+
+
+```
+
+## Single Design Point Variability Effects on LoD Estimates {.tabset}
+
+<!--
+In the next section, we will vary observations at a single design
+point between simulated replicates.  This will give us a sense of the
+influence observations at each design point have on the LoD estimate.
+In another section we will look at the effect of measurement error 
+at verious design points.
+-->
+
+In this section, we will vary observations at a single design
+point between simulated replicates in order to  get a sense of the
+influence the variability of observations at each design point has on the LoD estimate.
+
+
+<br/>
+
+### 30 x 20  {-}
+
+`r REP <- 30; NSAMP <- 20`
+
+
+```{r lod-sim-30-20-by-pt, cache=F, cache.vars='', fig.height=6, fig.width=8, fig.cap=paste("Simulate by Design Point;", REP, 'x', NSAMP), out.width.px=1, out.height.px=1, eval=T, warning=F}
+
+get_fixed_data <- function (design, nSamp=100) 
+  do.call('rbind', lapply(1:nrow(design), function(RR){
+    dose <- design[RR, 'dose']
+    prob <- design[RR, 'prob']
+    nDetect <- round(nSamp * prob)
+    detected <- NULL
+    if(nDetect > 0) detected <- c(detected, rep(1, nDetect))
+    if(nDetect < nSamp) detected <- c(detected, rep(0, nSamp - nDetect))
+    data.frame(dose=dose, detected=detected)
+   }))
+
+
+# Check
+fixed_frm <- get_fixed_data(full_probit_design, nSamp=NSAMP)
+
+detected_mean_vec <- with(fixed_frm, sapply(split(detected, round(dose)), mean))
+
+#knitr::kable(
+cat('Data Collection Design\n')
+data.frame(dose=names(detected_mean_vec), hit_rate=detected_mean_vec)
+#caption='Data Collection Design')
+
+
+
+##########################
+# Vary one dose at a time
+par(mfrow=c(2,3), mar=c(3,2,3,2), oma=c(3,2,4,0))
+
+# First fit to fixed data
+plot_model(full_probit_design, model=full_probit_fit, Line=F, Points=F, Xlab=F)
+
+sim_frm <- get_fixed_data(full_probit_design, nSamp=NSAMP)
+lod_baseline <- get_probit_lod(sim_frm, Plotit=T)
+
+# summarize results in title
+title(paste("Original fit",
+ "\nEst LoD ", format(round( lod_baseline[1],1), nsmall=1)[1]))
+
+
+for(DOSE in unique(full_probit_design$dose)){
+ plot_model(full_probit_design, model=full_probit_fit, Line=F, Points=F, Xlab=F)
+
+ lod_vec <- do.call('c', lapply(1:REP, function(JJ) {
+  sim_frm <- rbind(get_fixed_data(full_probit_design %>% dplyr::filter(dose!=DOSE), nSamp=NSAMP),
+                   sim_data(full_probit_design %>% dplyr::filter(dose==DOSE), nSamp=NSAMP))
+  #Check
+  #with(sim_frm, print(sapply(split(detected, dose), mean)))
+
+  get_probit_lod(sim_frm, Plotit=T)
+ }))
+
+ # summarize results in title
+ title(paste("Var at dose*1e6 =", round(DOSE),
+ "\nEst LoD m =", round(mean( lod_vec),1), "  sd =", round(sd( lod_vec),1)))
+
+ # add model line and design points for fit
+ plot_model(full_probit_design, model=full_probit_fit, New=F, Line=T, Points=T)
+
+ # in this case fit_design == full_probit_design
+ #plot_model(fit_design, model=full_probit_fit, New=F, Line=F, Points=T)
+
+ # Add dotted line for P=Target
+ Target <- 0.95 # Targeted hit rate for LoD
+
+ x_pTarget <- inv_probit(Target, full_probit_fit)
+ segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+ #segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+ abline(h=Target, col='red')
+
+}
+
+ mtext(side=3, outer=T, 
+ paste("Fits to datasets with variation at only one dose",
+ "\n", REP, 'x', NSAMP, "simulations:",
+ "- True LoD =", round(true_lod,1)))
+
+ mtext(side=1, outer=T, "dose * 1e6", cex=1.25)
+ mtext(side=2, outer=T, "Prob Detected", cex=1.25)
+
+```
+
+<br/>
+
+## LoD Estimates under Misspecified Model {#lod-misspec-model}
+
+We proceed as in in the previous section except that the data generation
+process and the true LoD are now governed by a logit model while we 
+continue to fit a probit model.
+
+The results show  that the probit fit recovers the LoD accurately 
+even when the data come from a logit generative model.  This is in agreement with the 
+opinion that the probit and logit links give essentially similar results
+under most reasonable well-behaved conditions (Hahn (2005) [@Hahn:2005aa]).  Chen and Tsurumi (2010) [@Chen:2010aa]
+also found show that if data are balanced none of the model selection criteria considered 
+in that article can distinguish the probit and logit models.  
+
+
+```{r lod-sim-design-logit-2, cache=T, cache.vars=c('mvafDetect_logit_fit', 'full_logit_design'), fig.height=6, fig.width=8, fig.cap="Simulation Master Design", out.width.px=1, out.height.px=1, warning=F}
+
+inv_logit <- function(p, m) (log(p/(1-p)) - coef(m)[1])/coef(m)[2]
+
+# Generate data according to logit model
+mvafDetect_logit_fit <- glm(detected ~ dose,
+                data = data_frm, binomial(link = "logit"))
+
+prob_vec <- c(.1, .2, .5, .9, 0.98)
+dose_vec <- inv_logit(prob_vec, mvafDetect_logit_fit)
+              
+full_logit_design <- data.frame(dose=dose_vec, prob=prob_vec)
+
+
+# Print design
+#knitr::kable(full_logit_design, caption="Simulation Design Parameters")
+
+
+knitr::kable(
+t(full_logit_design %>% dplyr::mutate(dose=round(dose))),
+caption="Simulation Design Parameters (dose is conc * 1e6)"
+) %>% 
+kableExtra::kable_styling(full_width = F)
+
+```
+
+
+<br/>
+
+## LoD Estimate Variability {.tabset}
+
+
+### N = 20  {-}
+
+`r REP <- 30; NSAMP <- 20`
+
+Generate and plot `r REP` instances of probit fits to full full_logit_design with N = `r NSAMP` at each design point.
+The total number of observations in each simulated data set is `r nrow(full_logit_design) * NSAMP`.
+
+```{r lod-sim-30-20-logit, cache=F, cache.vars='', fig.height=6, fig.width=8, fig.cap=paste("Simulate Full Design;", REP, 'x', NSAMP), out.width.px=1, out.height.px=1, warning=F}
+
+inv_logit <- function(p, m) (log(p/(1-p)) - coef(m)[1])/coef(m)[2]
+logistic <- function(x) 1/(1+exp(-x))
+
+MODEL <- "Full Design"
+fit_design <- full_logit_design 
+
+set.seed(12379)
+
+# initialize plot
+plot_model(full_logit_design, model=mvafDetect_logit_fit, Line=F, Points=F, invLink=logistic)
+
+# get true_lod
+Target <- 0.95 # Targeted hit rate for LoD
+true_lod <- inv_logit(Target, mvafDetect_logit_fit)
+
+# Get REP estimates of LoD for MODEL
+N20_lod_mtx <- do.call('rbind', lapply(1:REP, function(JJ) {
+ sim_frm <- sim_data(fit_design, nSamp=NSAMP)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+
+### THIS NEEDS TO BE HANDLED BETTER
+N20_lod_mtx <- N20_lod_mtx[!(rowSums(is.na(N20_lod_mtx) > 0)),]
+
+# summarize results in title
+title(paste("Probits Fits to", MODEL, "logit generated data",
+"\n", REP, 'N =', NSAMP, "simulations:",
+"Est LoD m =", round(mean( N20_lod_mtx[,1]),1), "  sd =", round(sd( N20_lod_mtx[,1]),1),
+"\nTrue LoD =", round(true_lod,1),
+ "invest SE IQR", paste(round(quantile( N20_lod_mtx[,4], prob=c(1,3)/4),1),collapse='-')))
+
+# add model line and design points for fit
+plot_model(full_logit_design, model=mvafDetect_logit_fit, New=F, Line=T, Points=F, invLink=logistic)
+plot_model(fit_design, model=mvafDetect_logit_fit, New=F, Line=F, Points=T, invLink=logistic)
+
+# Add dotted line for P=Target
+x_pTarget <- inv_logit(Target, mvafDetect_logit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+
+
+```
+
+<br/>
+
+### N = 40  {-}
+
+`r REP <- 30; NSAMP <- 40`
+
+Generate and plot `r REP` instances of probit fits to full full_logit_design with N = `r NSAMP` at each design point.
+The total number of observations in each simulated data set is `r nrow(full_logit_design) * NSAMP`.
+
+```{r lod-sim-30-40-logit, cache=F, cache.vars='', fig.height=6, fig.width=8, fig.cap=paste("Simulate Full Design;", REP, 'x', NSAMP), out.width.px=1, out.height.px=1, warning=F}
+
+inv_logit <- function(p, m) (log(p/(1-p)) - coef(m)[1])/coef(m)[2]
+logistic <- function(x) 1/(1+exp(-x))
+
+MODEL <- "Full Design"
+fit_design <- full_logit_design 
+
+set.seed(12379)
+
+# initialize plot
+plot_model(full_logit_design, model=mvafDetect_logit_fit, Line=F, Points=F, invLink=logistic)
+
+# get true_lod
+Target <- 0.95 # Targeted hit rate for LoD
+true_lod <- inv_logit(Target, mvafDetect_logit_fit)
+
+# Get REP estimates of LoD for MODEL
+N40_lod_mtx <- do.call('rbind', lapply(1:REP, function(JJ) {
+ sim_frm <- sim_data(fit_design, nSamp=NSAMP)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+
+### THIS NEEDS TO BE HANDLED BETTER
+N40_lod_mtx <- N40_lod_mtx[!(rowSums(is.na(N40_lod_mtx) > 0)),]
+
+# summarize results in title
+title(paste("Probits Fits to", MODEL, "logit generated data",
+"\n", REP, 'N =', NSAMP, "simulations:",
+"Est LoD m =", round(mean( N40_lod_mtx[,1]),1), "  sd =", round(sd( N40_lod_mtx[,1]),1),
+"\nTrue LoD =", round(true_lod,1),
+ "invest SE IQR", paste(round(quantile( N40_lod_mtx[,4], prob=c(1,3)/4),1),collapse='-')))
+
+# add model line and design points for fit
+plot_model(full_logit_design, model=mvafDetect_logit_fit, New=F, Line=T, Points=F, invLink=logistic)
+plot_model(fit_design, model=mvafDetect_logit_fit, New=F, Line=F, Points=T, invLink=logistic)
+
+# Add dotted line for P=Target
+x_pTarget <- inv_logit(Target, mvafDetect_logit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+
+
+```
+
+
+
+<br/>
+
+### N = 60  {-}
+
+`r REP <- 30; NSAMP <- 60`
+
+Generate and plot `r REP` instances of probit fits to full full_logit_design with N = `r NSAMP` at each design point.
+The total number of observations in each simulated data set is `r nrow(full_logit_design) * NSAMP`.
+
+```{r lod-sim-30-60-logit, cache=F, cache.vars='', fig.height=6, fig.width=8, fig.cap=paste("Simulate Full Design;", REP, 'x', NSAMP), out.width.px=1, out.height.px=1, warning=F}
+
+inv_logit <- function(p, m) (log(p/(1-p)) - coef(m)[1])/coef(m)[2]
+logistic <- function(x) 1/(1+exp(-x))
+
+MODEL <- "Full Design"
+fit_design <- full_logit_design 
+
+set.seed(12379)
+
+# initialize plot
+plot_model(full_logit_design, model=mvafDetect_logit_fit, Line=F, Points=F, invLink=logistic)
+
+# get true_lod
+Target <- 0.95 # Targeted hit rate for LoD
+true_lod <- inv_logit(Target, mvafDetect_logit_fit)
+
+# Get REP estimates of LoD for MODEL
+N60_lod_mtx <- do.call('rbind', lapply(1:REP, function(JJ) {
+ sim_frm <- sim_data(fit_design, nSamp=NSAMP)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+### THIS NEEDS TO BE HANDLED BETTER
+N60_lod_mtx <- N60_lod_mtx[!(rowSums(is.na(N60_lod_mtx) > 0)),]
+
+
+# summarize results in title
+title(paste("Probits Fits to", MODEL, "logit generated data",
+"\n", REP, 'N =', NSAMP, "simulations:",
+"Est LoD m =", round(mean( N60_lod_mtx[,1]),1), "  sd =", round(sd( N60_lod_mtx[,1]),1),
+"\nTrue LoD =", round(true_lod,1),
+ "invest SE IQR", paste(round(quantile( N60_lod_mtx[,4], prob=c(1,3)/4),1),collapse='-')))
+
+# add model line and design points for fit
+plot_model(full_logit_design, model=mvafDetect_logit_fit, New=F, Line=T, Points=F, invLink=logistic)
+plot_model(fit_design, model=mvafDetect_logit_fit, New=F, Line=F, Points=T, invLink=logistic)
+
+# Add dotted line for P=Target
+x_pTarget <- inv_logit(Target, mvafDetect_logit_fit)
+segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+#segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+abline(h=Target, col='red')
+
+
+```
+
+<br/>
+
+## LoD Estimate Variability under Misspecified Model - Summary
+
+```{r lod-lod-est-var-misspec-sum, fig.cap="LoD Estimate Variability nder Misspecified Model - Summary", out.width.px=1, out.height.px=1}
+
+lod_est_var_mtx <-
+rbind(
+c(N = 20,
+  lod_mean = round(mean( N20_lod_mtx[,1]),1),
+  lod_sd = round(sd( N20_lod_mtx[,1]),1),
+  lod_cv = round(100 * sd( N20_lod_mtx[,1])/mean( N20_lod_mtx[,1]), 1),
+  invest_se_mean = round(mean( N20_lod_mtx[,4]),1)),
+c(N = 40,
+  lod_mean = round(mean( N40_lod_mtx[,1]),1),
+  lod_sd = round(sd( N40_lod_mtx[,1]),1),
+  lod_cv = round(100 * sd( N40_lod_mtx[,1])/mean( N40_lod_mtx[,1]), 1),
+  invest_se_mean = round(mean( N40_lod_mtx[,4]),1)),
+c(N = 60,
+  lod_mean = round(mean( N60_lod_mtx[,1]),1),
+  lod_sd = round(sd( N60_lod_mtx[,1]),1),
+  lod_cv = round(100 * sd( N60_lod_mtx[,1])/mean( N60_lod_mtx[,1]), 1),
+  invest_se_mean = round(mean( N60_lod_mtx[,4]),1)))
+
+knitr::kable(
+lod_est_var_mtx,
+caption=paste("Misspecified Model; LoD Estimate Variability - Summary: True LoD =",round(true_lod,1))
+) %>%
+kableExtra::kable_styling(full_width = F)
+
+```
+
+
+
+
+# Reproducibility
+
+```{r m1a-repro-session, out.width.px=1, out.height.px=1, eval=T}
+pander::pander(sessionInfo())
+```
+
+
+```{r, echo=FALSE, out.width.px=1, out.height.px=1}
+  knit_exit()
+```
+
+
+####################################################################################
+## ARCHIVAL CODE 
+####################################################################################
+<!-- DOESNT WORK 
+### `ecotox::LC_probit` {-}
+
+[ecotox::LC_probit](https://cran.r-project.org/web/packages/ecotox/readme/README.html)
+requires qrouped data.
+-->
+```{r lod-mvaf-data-grouped, cache=F, casche.vars='data_frm_grouped', out.width.px=1, out.height.px=1,eval=F, echo=F}
+
+# Get counts and averages by design points: participant_id*dose -
+data_frm_by_design <- by(
+ data_frm %>% 
+   dplyr::select(
+      targeted_vaf_percent, 
+      dose,
+      titration_posterior_median, 
+      detected, 
+      cancer_detected_too_correct, 
+      analysis_linear_filtered_abnormal_coverage_cpg_mean),
+ data_frm %>% 
+   dplyr::select(participant_id, dose),
+ FUN=function(x) c(N=nrow(x), colMeans(x)))
+ 
+# re-organize data_frm_by_design
+data_frm_grouped <- NULL
+
+for(II in 1:dim(data_frm_by_design)[1])
+for(JJ in 1:dim(data_frm_by_design)[2]){
+ if(is.null(data_frm_by_design[II,JJ][[1]])) next()
+ data_frm_grouped <- rbind(data_frm_grouped,
+  data.frame(
+   participant_id=dimnames(data_frm_by_design)[[1]][II],
+   titration_af=dimnames(data_frm_by_design)[[2]][JJ],
+   t(data_frm_by_design[II,JJ][[1]]))
+ )
+ }
+
+data_frm_grouped %<>% dplyr::mutate( 
+   correct_detection = N * detected,
+   correct_too = N * cancer_detected_too_correct)
+
+data_frm_grouped %>% 
+  dplyr::select(participant_id, titration_af, N, correct_detection, correct_too) %>%
+  DT::datatable(extensions = 'Buttons', options = list(pageLength=50),
+                caption = "Grouped AV2-LOD participant data")
+
+```
+
+```{r lod-lc-probit-fit, cache=F, out.width.px=1, out.height.px=1}
+
+detection_lc_probit <- ecotox::LC_probit(
+  (correct_detection / N) ~ titration_af,
+  weights = N,
+  p=c(.50, .95), 
+  data = data_frm_grouped )
+
+knitr::kable(t(detection_lc_probit))
+
+```
+
+<!--
+* The procedure does not return valid results - probably due to the perfect separability of
+cases.  We'll nest look at simulations where this separability does not occur in
+order to explore how design structure (ie which x=mvaf values are included in the study)
+affects the analysis results.
+
+
+<br/>
+-->
+
+
+
+Try ecotox::LC_probit on these data.
+
+```{r lod-plot-sim-fits-ecotox-LC-probit, cache=F, fig.height=6, fig.width=8, fig.cap="MVAF Detection Probit Fits to Simulated Data", out.width.px=1, out.height.px=1}
+
+
+
+# simulate instances of Y following model \@ref(eq:probit-eq2)
+sim_probit <- function(x, Beta, N=1) rbinom(n=N, size=1, p=pnorm(Beta[1] + x*Beta[2]))
+
+sim_data <- function () do.call('rbind', lapply(dose_vec, function(dose)
+  data.frame(dose=dose, detected = sim_probit(x=dose, Beta=coef(full_probit_fit), N=20))))
+
+
+#run_sim <- function() {
+ # simulate data
+ sim_frm <- sim_data()
+  
+ sim_frm_by_design <- by(
+ sim_frm,
+ sim_frm$dose, 
+ FUN=function(x) c(N=nrow(x), colMeans(x)))
+
+ sim_frm_grouped <- as.data.frame(do.call('rbind', lapply(sim_frm_by_design, function(LL) LL)))
+
+ sim_frm_grouped$correct_detection <- with(sim_frm_grouped,
+  N * detected)
+
+
+ sim_frm_lc_probit <- ecotox::LC_probit(
+  (correct_detection / N) ~ dose,
+  weights = N,
+  p=c(.50, .95),
+  #log_x = F,
+  data = sim_frm_grouped )
+
+ as.data.frame(sim_frm_lc_probit)
+
+```
+```
+#################################
+# Full simulation from design
+simulate_design <- function(design, model=full_probit_fit, Rep=30, N=20, Title=NULL){
+
+ plot_model(full_logit_design, model, Plotit=F)
+
+ # Add simulation fits from this `design`
+ sim_LD95_vec <- sapply(1:10, function(JJ) run_sim(design))
+ 
+ lod_vec <- do.call('c', lapply(1:REP, function(JJ) {
+  sim_frm <- sim_data(full_logit_design, nSamp=20)
+ get_probit_lod(sim_frm, Plotit=T)
+}))
+
+ title(paste("Fits to full model simulations:", REP, 'x', NSAMP,
+ "\nEst LoD m =", round(mean( lod_vec),1), "  sd =", round(sd( lod_vec),1),
+ "\nTrue LoD =", round(true_lod,1)))
+
+ plot_model(full_logit_design, model=full_probit_fit, New=F)
+ # Add dotted line for P=Target
+ x_pTarget <- inv_probit(Target, full_probit_fit)
+ segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+ segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+ 
+ # add model line
+ with(model_frm,  points(x=x, y=y, type='l', col='green', lwd=3))
+ # add model points
+ with(design,
+ points(x=dose, y=pnorm(coef(full_probit_fit)[1] +  dose*coef(full_probit_fit)[2]),
+   pch=16))
+
+ # Add dotted line for P=Target
+ x_pTarget <- inv_probit(Target, full_probit_fit)
+ segments(x0=1e-7, x1=x_pTarget, y0=Target, y1=Target, col='red', lty=2)
+ segments(x0=x_pTarget, x1=x_pTarget, y0=Target, y1=0, col='red', lty=2)
+ 
+ # Add design points reference lines 
+ abline(v=design$dose, col='grey', lty=2)
+ abline(h=design$prob, col='grey', lty=2)
+ 
+ # Add axis
+ axis(side=1, at=design$dose, labels=round(100*design$dose,4), las=2)
+ 
+ legend('topleft', legend=c("Model (from titration data)", "Fits to simulated data"), col=c('green','blue'), lty=1,bty='n')
+ legend('topright', bty='n', col='blue', text.col='blue',
+ legend=paste("LOD95 Q1-3 =", 
+        paste(round(100*quantile(sim_LD95_vec, prob=1:3/4),4), collapse=', ')))
+ 
+ if(!is.null(Title)) title(Title)
+}
+
+# Appendix E - Extracts from EP17-A2 {#app-e-ep17-a2}
+
+<br/>
+
+## General Notes on Sample Selection
+
+This section is very close to Section 4.5 in CLSI document EP17-A2 [@CLSI-EP17A2:2012aa].
+
+Protocols used to establish assay performance characteristics rely on testing
+or measuring `blank samples` and `low level samples`
+(samples contining low amounts of measurand).
+
+* Measurements should be acquired from **multiple**, **independent** blank and 
+low level samples or pools of samples in order to 
+**account for matrix variability among samples**. 
+
+* **At least four individual, unique, and natural** patient samples of each type 
+(blank and low level) should be used in the study. To the extent possible, blank 
+and low level samples should reflect performance consistent with native patient samples. 
+
+* It is acceptable to dilute or spike samples in order to provide low level samples at 
+desired measurand levels, providing that such samples perform similarly 
+to native patient samples in the measurement procedure.
+   - <span style="color:blue;">
+At what level is the dilution done in our dilution experiments?</span>
+   - <span style="color:blue;">
+How closely do diluted samples resemble actual samples?
+Is there a rare fragment capture effect that could be missing from the
+low level samples simulated by diluton?</span>
+
+* Blank samples represent patient samples with no measurand content.
+Samples from nondiseased subjects may be appropriate for tumor marker measurands.
+
+<br/>
+
+## Selection of Experimental Protocol
+
+This section is very close to Section 5.2 in CLSI document EP17-A2 [@CLSI-EP17A2:2012aa].
+
+* **Classical Approach**  
+   - uses measurements made on both a set of blank samples and a set of low level samples containing a measurand targeted around the assumed LoD.   
+   - nonparametric or—more rarely—a parametric data analysis option is selected to calculate the LoB and LoD estimates.
+   - An underlying assumption is that variability of measurement results is reasonably consistent across the low level samples. A variant design (trial and error) is described for cases in which this assumption is not met.
+
+*  **Precision Profile Approach**  
+   - when the variability of measurement results changes significantly in the region of the assumed LoD
+   - also may be useful in cases in which the developer wishes to make use of precision data that were acquired over a wider concentration interval than typically used for detection capability studies. 
+   - approach assumes that variability of measurement results vs the mean measurand concentration can be fitted adequately with a precision profile model.
+
+* **Probit Approach**  
+   -  appropriate in cases when all blank or negative sample results normally are reported as negative.  
+   - false-positive rate is very low, typically below 0.5%, and the LoB, typically is taken
+to be zero.
+   - The LoD is calculated from a probit regression model as the measurand concentration at which, with a predefined probability (usually 95%), measurement results yield a positive classification.
+      - For EDCTs, it is not immediately clear that this is a better protocol
+than something more in the spirit of the Classical Approach.
+      - Some factors at play here are the fact that the Target (eg. 0.95) hit rate is
+near the margin of the probit scale and that the probit fit requires linearity
+of response over the entire range of measurands that span entire range of probits
+from 0 to 1.
+
+
+<br/>
+
+## Probit Approach 
+
+This section is very close to Section 5.5 in CLSI document EP17-A2 [@CLSI-EP17A2:2012aa].
+
+* The probit approach is useful to evaluate the LoD for measurement procedures whose detection 
+capabilities are assessed in terms of proportion (ie, number of positive results with respect 
+to the total number of replicate tests) and it can also be used for direct measurand 
+quantitations when the LoB is used for defining "positive" results.
+
+* Typical use of the probit approach follows a limiting dilution dose-response protocol. 
+A set of serial dilutions are made from a starting sample of known measurand content. 
+These dilutions are tested in replicate by the measurement procedure in which results are 
+judged to be one of two outcomes: detected or not detected. For each dilution, 
+a ratio (the hit rate) is computed as the number of replicates with a “detected” 
+outcome per the total number of replicates tested. These hit rates are converted mathematically 
+into cumulative normal probability units (probits) and fitted by a regression model vs 
+their respective measurand concentrations. Finally, the regression model is used to 
+compute the measurand concentration corresponding to a predefined hit rate (eg, 0.95), 
+which is then taken as the LoD. An illustration of the analysis is given in 
+Figure <<insert figure from section\@ref(ep17-a2-probit-example) here>>, with a worked example in 
+the next section.
+
+* Within the clinical laboratory, probit analysis is particularly important for measurement 
+procedures based upon molecular techniques such as those to detect infectious agents 
+(eg, hepatitis C virus, hepatitis B virus, human immunodeficiency virus) and other 
+nucleic acid tests using PCR technology for target amplification and detection. Such 
+measurement procedures have essentially no distribution of measurement results for negative samples, 
+because all such results are typically reported as zero. In these situations, the 95th 
+percentile of test results on blank samples equals zero, and LoB is set to zero by definition. 
+Otherwise, the nonparametric approach described in Section 5.3.3.1 may be used to 
+establish an LoB for the measurement procedure.
+
+* It is important to 
+<span style="color:blue;">
+include representative samples of all relevant genotypes 
+</span>
+when evaluating the detection capability of molecular measurement procedures, because not all variants 
+may have equivalent reactivity under the same reaction conditions. LoD estimates 
+may be done separately for each significant genotype, with the largest value taken as 
+the LoD estimate for the overall measurement procedure. Less common genotypes may be either 
+included in the formal LoD study or checked in a subsequent verification study to ensure 
+that their behavior is consistent with the LoD claim for the major genotypes.
+   - <span style="color:blue;"> as an ECDT is based on epi-genetic **patterns**, where one or more may be present
+in any positive case, the LoD will vary from sample to sample</span>.  
+   -<span style="color:blue;"> in this context, an LoD is probably best thought of as an average LoD</span>.    
+   -<span style="color:blue;"> one may be also be interested in LoD variability</span>.  
+
+<br/>
+
+### Experimental Design
+
+<br/>
+
+#### Protocol Requirements
+
+* The experimental design is used to process replicates of dilutions made from multiple 
+independent samples of known measurand concentrations across multiple days. Some measurement 
+procedures may not have the throughput to test the minimum number of 
+samples and/or replicates in three days. In these cases, increasing the number 
+of testing days to accommodate the capability of the instrument is acceptable. 
+This study is repeated for multiple reagent lots, with an LoD calculated for each individual
+reagent lot if two or three reagent lots were used, or on the combined dataset from all lots 
+if four or more reagent lots were used. The maximum observed LoD is taken as the 
+reported value for the measurement procedure. 
+
+* The **minimal experimental design** to yield estiamtes of LoBs and LoDs is:  
+    - Two reagent lots
+    - One instrument system
+    - Three days
+    - 30 individual negative patient samples
+    - Two replicates (across all testing days) per negative sample per reagent lot   
+    - Three samples of known measurand content (positive samples)
+<span style="color:blue;">
+    - Five dilutions per positive sample
+</span>
+    - 20 replicates per dilution (across all testing days) per positive sample per reagent lot
+    
+* The dilution series should be made so that at least three dilutions yield hit 
+rates within the range of 0.10 to 0.90 and at least one dilution yields a hit rate exceeding 0.95. 
+
+* It is not desirable to have more than one dilution at either extreme (ie, < 0.10 and/or > 0.95)
+as this could unduly impact the quality of the probit model fit and resulting LoD estimate.
+
+* Increasing the number of dilutions beyond the required five minimum may be useful 
+to improve the quality of the model (eg, eight dilutions with five having hit rates 
+falling in the range of 0.10–0.90 and three with hit rates falling in 
+the range of 0.80–0.99).
+
+* The above text describes the minimal experimental design to yield estimates of the LoBs and LoDs. A developer may wish to expand this design to add more levels of each experimental factor listed above and/or add more design factors, depending on the nature of the measurement procedure and the desired rigor of the resulting detection capability estimates. In addition, some measurement procedures/instrumentation may not have the throughput to test the minimum number of samples/replicates in three days. In these cases, increasing the number of testing days to accommodate the capability of the instrument is acceptable. If the probit model does not provide an acceptable fit to the data, to improve the fit, it may be useful to augment the data by testing additional dilutions and increasing the number of replicates at a concentration level at which the hit rate appears to be an outlier. Consultation with a statistician may be helpful to suggest experimental design options to improve the quality of fit.
+
+#### Sample Selection
+
+* Measurements should be acquired from multiple, independent blank and low level samples or pools of samples in order to account for matrix variability among samples. At least four individual, unique, and natural patient samples of each type (blank and low level) should be used in the study. To the extent possible, blank and low level samples should reflect performance consistent with native patient samples. It is acceptable to dilute or spike samples in order to provide low level samples at desired measurand levels, providing that such samples perform similarly to native patient samples in the measurement procedure.
+
+* Blank samples represent patient samples with no measurand content. Appropriate examples include the use of drug-free serum samples for a drug measurement procedure or virus/bacteria–free samples for molecular diagnostics measurement procedures. 
+
+* Blank samples represent patient samples with no measurand content. Appropriate examples include the use of drug-free serum samples for a drug measurement procedure or virus/bacteria–free samples for molecular diagnostics measurement procedures. 
+
+* Blank samples for hormone measurands may come from diseased subjects or subjects with suppressed measurand levels due to pharmacological treatment, while samples from nondiseased subjects may be appropriate for tumor marker measurands.
+
+* If a residual level of a measurand is unavoidable, it should be at least an order of magnitude below the limit of the measuring range for the measurement procedure.
+
+* It is acceptable to use pools of negative samples rather than all individual patient samples, but at least 30 unique negative samples must be tested.
+
+* At least three independent positive patient samples should be used. 
+
+* If the measurand exhibits genetic variation, sufficient samples should be selected to represent the major genotypes—particularly those specifically cited in the measurement procedure’s instructions for use (IFU).
+
+* The genotypes to be tested and the number of samples per genotype may depend upon the measurand and/or particular device under study. Consultation with the appropriate regulatory bodies may be useful to resolve these issues before performing the evaluation study.
+
+* Negative patient samples are used to assess the false-positive rate of the measurement procedure and/or to evaluate an LoB. Native patient samples should be used for this purpose, rather than processed or artificial samples.
+
+
+### Experimental Steps
+
+* Decide on the experimental design factors and number of levels for each factor to be used 
+as well as the processing plan to test the factors with the specific measurement procedure. 
+
+* Testing for the LoB and LoD may be done in parallel or sequentially as the two are handled as independent studies by this experimental approach.
+
+
+#### Limit of Blank
+
+* Depending on the nature of the particular measurement procedure, the developer may choose to 
+either set the LoB as zero by default, or calculate the LoB using a version of the classical approach.
+
+* If the zero default option is used, then a set of negative patient samples are run as confirmatory tests to assess the false-positive rate.
+
+
+Either
+
+* Assign LoB = Zero and Confirm
+or
+* Evaluate by Classical Approach
+
+
+#### Limit of Detection
+
+1. For measurands having multiple genotypes: review all genotypes for the measurand. Identify and document which will be incorporated into the LoD testing and which, if any, will be assessed through subsequent verification testing.
+
+2. Identify sources and obtain sufficient volumes for all samples to be used per the experimental design and processing plan for the specific measurement procedure under evaluation. At least one sample must be used per genotype to be included in the LoD testing, per Step 1 above. These will be referred to as “starting samples” in subsequent steps.
+
+3. Prepare a series of at least five dilutions for each starting sample, per guidance in Section 5.5.1.1.
+
+4. Each testing day, process the designated number of replicate tests per dilution according to the processing plan.
+
+5. Review the measurement results each testing day to check for possible processing errors or missing results. Identify potential outliers and assignable causes for them. Outliers arising from such assignable causes—aside from analytical errors of the measurement procedure itself—may be retested and substituted into the data, ideally on the same testing day. Any such retests must be documented, along with the original test results.
+
+6. Repeat Steps 3 to 5 for each starting sample and across all reagent lot/instrument system combinations, per the experimental design and processing plan.
+
+7. Ensure that sufficient measurement results are available at the end of testing to start data analysis (a minimum of 20 replicates per dilution for each reagent lot).
+
+
+### Data Analysis
+
+The analysis process uses the following sequence of steps to provide the final LoB and LoD estimates:
+1. Select the $\alpha$ error risk to use for the LoB 
+(either calculating the estimate per the protocols of Section 5.3 or confirming the default zero value) and 
+the $\beta$ error risk to use for the LoD (typically $\alpha = \beta = 0.05$).
+
+2. Define or calculate the LoB based on the approach selected for the measurement procedure.
+
+3. Calculate the LoD for each reagent lot.
+
+4. Select the maximum LoD observed as the LoD estimate for the measurement procedure.
+
+<br/>
+
+#### Calculation of Limit of Blank
+
+Assign LoB = Zero, and Confirm
+
+1. Set LoB = zero for the measurement procedure.
+
+2. For each reagent lot separately, count the number of negative sample replicate measurement results across all samples, instrument lots, etc., that would be reported as a positive result. Convert this value into a percentage with respect to the number of all negative sample replicates processed, and report as the percentage of false-positive results.
+
+3. If the percentage of false-positive results for a given reagent lot does not exceed 100$\alpha$%, then 
+the 100(1 − $\alpha$)% of the result is zero and LoB = zero is confirmed for that lot. Each reagent lot must be confirmed separately.
+
+
+#### Calculation of Limit of Detection
+
+Analyze the data from all starting samples for each reagent lot independently.
+
+1. Calculate the hit rate Hi for each dilution as:
+$H_i = \frac{Npos_i}(Ntot_i}$
+where $Npos_i$ is the number of replicates reported as positive for presence of the measurand and 
+$Ntot_i$ is the total number of replicates processed for the ith dilution.
+
+2. Using computer software for a direct probit analysis, input the hit rates (y-axis variable) with their corresponding measurand concentrations (x-axis variable), then perform a probit fit. Using log10 concentration on the x-axis often improves the probit fit.
+
+3. Evaluate the quality of the probit model fit to the data by a suitable statistical test (eg, comparing the deviance statistic or Pearson chi-square statistic to the quantile of chi-square distribution). If the goodness of fit is not acceptable, it may be possible to improve the goodness of fit by testing additional dilutions and/or replicates at the current dilutions, as appropriate, and combining these results with the existing data.
+
+4. If the model fit is deemed acceptable, use the software to obtain the measurand concentration 
+corresponding to the desired $\beta$ error risk (typically $\beta$ = 0.05 for a hit rate of 0.95) and report this as the trial LoD for that particular lot. Continue with Step 5.
+
+5. Follow Steps 1–4 to calculate trial LoD results for each lot.
+
+6. Review all of the trial LoD values and select the maximum as the reported LoD estimate for the measurement procedure.
+
+
+## END ARCHIVAL CODE 
+####################################################################################
+
+<!-- To run
+# nohup Rscript -e "knitr::knit2html('_LOD_Analysis.Rmd')" > _LOD_Analysis.log  &
+
+# Or
+# nohup Rscript -e "rmarkdown::render('_LOD_Analysis.Rmd')" > _LOD_Analysis.log  &
+
+-->
+

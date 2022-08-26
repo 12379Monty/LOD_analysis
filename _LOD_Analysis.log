@@ -1,0 +1,296 @@
+
+
+processing file: _LOD_Analysis.Rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |.                                                                     |   1%
+  ordinary text without R code
+
+  |                                                                              |.                                                                     |   2%
+label: m0b-GlobalOptions (with options) 
+List of 5
+ $ results      : chr "hide"
+ $ include      : logi FALSE
+ $ cache        : logi FALSE
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+  |                                                                              |..                                                                    |   3%
+  ordinary text without R code
+
+  |                                                                              |...                                                                   |   4%
+label: m0b-Prelims (with options) 
+List of 6
+ $ include      : logi FALSE
+ $ echo         : logi FALSE
+ $ results      : chr "hide"
+ $ message      : logi FALSE
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+  |                                                                              |...                                                                   |   5%
+  ordinary text without R code
+
+  |                                                                              |....                                                                  |   6%
+label: lod-utilityFns (with options) 
+List of 3
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+ $ echo         : logi FALSE
+
+  |                                                                              |.....                                                                 |   7%
+  ordinary text without R code
+
+
+label: lod-phi-function (with options) 
+List of 7
+ $ cache        : logi FALSE
+ $ cache.vars   : chr ""
+ $ fig.height   : num 4
+ $ fig.width    : num 4
+ $ fig.cap      : chr "Cumulative Normal Distribution"
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+The magick package is required to crop "_LOD_Analysis_files/figure-html/lod-phi-function-1.png" but not available.
+  |                                                                              |......                                                                |   8%
+  ordinary text without R code
+
+  |                                                                              |.......                                                               |   9%
+label: lod-probit-example-data (with options) 
+List of 4
+ $ cache        : logi TRUE
+ $ cache.vars   : chr "example_data_frm"
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+  |                                                                              |.......                                                               |  10%
+  ordinary text without R code
+
+  |                                                                              |........                                                              |  11%
+label: lod-table-c1 (with options) 
+List of 3
+ $ fig.cap      : chr "Planned Dilutions Data"
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+  |                                                                              |.........                                                             |  12%
+  ordinary text without R code
+
+  |                                                                              |.........                                                             |  13%
+label: lod-table-c2 (with options) 
+List of 3
+ $ fig.cap      : chr "Additional Dilutions Data"
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+  |                                                                              |..........                                                            |  14%
+  ordinary text without R code
+
+  |                                                                              |..........                                                            |  15%
+label: lod-probit-fits-fns (with options) 
+List of 3
+ $ cache        : logi FALSE
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+  |                                                                              |...........                                                           |  16%
+  ordinary text without R code
+
+  |                                                                              |............                                                          |  17%
+label: lod-probit-fit-lot-1 (with options) 
+List of 6
+ $ cache        : logi FALSE
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+ $ fig.height   : num 5
+ $ fig.width    : num 6
+ $ fig.cap      : chr "Example Data Probit Fit - Lot 1"
+
+The magick package is required to crop "_LOD_Analysis_files/figure-html/lod-probit-fit-lot-1-1.png" but not available.
+  |                                                                              |............                                                          |  18%
+  ordinary text without R code
+
+  |                                                                              |.............                                                         |  19%
+label: lod-probit-fit-lot-2 (with options) 
+List of 6
+ $ cache        : logi FALSE
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+ $ fig.height   : num 5
+ $ fig.width    : num 6
+ $ fig.cap      : chr "Example Data Probit Fit - Lot 2"
+
+The magick package is required to crop "_LOD_Analysis_files/figure-html/lod-probit-fit-lot-2-1.png" but not available.
+  |                                                                              |..............                                                        |  20%
+  ordinary text without R code
+
+  |                                                                              |..............                                                        |  21%
+label: lod-probit-fit-lot-3 (with options) 
+List of 6
+ $ cache        : logi FALSE
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+ $ fig.height   : num 5
+ $ fig.width    : num 6
+ $ fig.cap      : chr "Example Data Probit Fit - Lot 3"
+
+The magick package is required to crop "_LOD_Analysis_files/figure-html/lod-probit-fit-lot-3-1.png" but not available.
+  |                                                                              |...............                                                       |  21%
+  ordinary text without R code
+
+  |                                                                              |................                                                      |  22%
+label: lod-sim-design-probit-2 (with options) 
+List of 7
+ $ cache        : logi TRUE
+ $ cache.vars   : chr [1:2] "full_probit_design" "full_probit_fit"
+ $ fig.height   : num 6
+ $ fig.width    : num 8
+ $ fig.cap      : chr "Simulation Master Design"
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+  |                                                                              |................                                                      |  23%
+  ordinary text without R code
+
+  |                                                                              |.................                                                     |  24%
+label: lod-def-sim-fns (with options) 
+List of 3
+ $ cache        : logi FALSE
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+  |                                                                              |..................                                                    |  25%
+   inline R code fragments
+
+  |                                                                              |..................                                                    |  26%
+label: lod-sim-30-20-probit (with options) 
+List of 7
+ $ cache        : logi FALSE
+ $ cache.vars   : chr ""
+ $ fig.height   : num 6
+ $ fig.width    : num 8
+ $ fig.cap      : language paste("Simulate Full Design;", REP, "x", NSAMP)
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+The magick package is required to crop "_LOD_Analysis_files/figure-html/lod-sim-30-20-probit-1.png" but not available.
+  |                                                                              |...................                                                   |  27%
+   inline R code fragments
+
+  |                                                                              |....................                                                  |  28%
+label: lod-sim-30-40-probit (with options) 
+List of 7
+ $ cache        : logi FALSE
+ $ cache.vars   : chr ""
+ $ fig.height   : num 6
+ $ fig.width    : num 8
+ $ fig.cap      : language paste("Simulate Full Design;", REP, "x", NSAMP)
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+The magick package is required to crop "_LOD_Analysis_files/figure-html/lod-sim-30-40-probit-1.png" but not available.
+  |                                                                              |....................                                                  |  29%
+   inline R code fragments
+
+  |                                                                              |.....................                                                 |  30%
+label: lod-sim-30-60 (with options) 
+List of 7
+ $ cache        : logi FALSE
+ $ cache.vars   : chr ""
+ $ fig.height   : num 6
+ $ fig.width    : num 8
+ $ fig.cap      : language paste("Simulate Full Design;", REP, "x", NSAMP)
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+The magick package is required to crop "_LOD_Analysis_files/figure-html/lod-sim-30-60-1.png" but not available.
+  |                                                                              |......................                                                |  31%
+  ordinary text without R code
+
+  |                                                                              |......................                                                |  32%
+label: lod-lod-est-var-sum (with options) 
+List of 3
+ $ fig.cap      : chr "LoD Estimate Variability - Summary"
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+  |                                                                              |.......................                                               |  33%
+  ordinary text without R code
+
+  |                                                                              |........................                                              |  34%
+label: lod-lin-inter (with options) 
+List of 7
+ $ cache        : logi TRUE
+ $ cache.vars   : chr ""
+ $ fig.height   : num 6
+ $ fig.width    : num 8
+ $ fig.cap      : chr "Estimating LD95 By Linear Interpolation"
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+The magick package is required to crop "_LOD_Analysis_files/figure-html/lod-lin-inter-1.png" but not available.
+  |                                                                              |........................                                              |  35%
+  ordinary text without R code
+
+  |                                                                              |.........................                                             |  36%
+label: lod-sim-2point-designs (with options) 
+List of 2
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+  |                                                                              |..........................                                            |  36%
+  ordinary text without R code
+
+  |                                                                              |..........................                                            |  37%
+label: lod-recall-probit-fit-n20 (with options) 
+List of 2
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+  |                                                                              |...........................                                           |  38%
+  ordinary text without R code
+
+  |                                                                              |...........................                                           |  39%
+label: lod-debug (with options) 
+List of 4
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+ $ eval         : logi FALSE
+ $ echo         : logi FALSE
+
+  |                                                                              |............................                                          |  40%
+  ordinary text without R code
+
+  |                                                                              |.............................                                         |  41%
+label: unnamed-chunk-1 (with options) 
+List of 3
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+ $ eval         : logi TRUE
+
+  |                                                                              |.............................                                         |  42%
+  ordinary text without R code
+
+  |                                                                              |..............................                                        |  43%
+label: unnamed-chunk-2 (with options) 
+List of 3
+ $ echo         : logi FALSE
+ $ out.width.px : num 1
+ $ out.height.px: num 1
+
+
+output file: _LOD_Analysis.knit.md
+
+/usr/local/bin/pandoc +RTS -K512m -RTS _LOD_Analysis.knit.md --to html4 --from markdown+autolink_bare_uris+tex_math_single_backslash --output _LOD_Analysis.html --lua-filter /Library/Frameworks/R.framework/Versions/4.0/Resources/library/rmarkdown/rmarkdown/lua/pagebreak.lua --lua-filter /Library/Frameworks/R.framework/Versions/4.0/Resources/library/rmarkdown/rmarkdown/lua/latex-div.lua --self-contained --wrap preserve --variable bs3=TRUE --standalone --section-divs --table-of-contents --toc-depth 3 --template /var/folders/jk/d24lm6n944q5y650lph85m7w0000gp/T//RtmpXcmkHH/BiocStyle/template.html --no-highlight --variable highlightjs=1 --number-sections --variable theme=bootstrap --css /Library/Frameworks/R.framework/Versions/4.0/Resources/library/BiocStyle/resources/html/bioconductor.css --css _pandoc3.css --include-in-header /var/folders/jk/d24lm6n944q5y650lph85m7w0000gp/T//RtmpXcmkHH/rmarkdown-strf011158dfd9a.html --mathjax --variable 'mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML' --variable code_folding=hide --variable code_menu=1 --citeproc 
+[WARNING] Citeproc: citation Graybill:1994aa not found
+[WARNING] Citeproc: citation Greenwell:2014aa not found
+[WARNING] Citeproc: citation Huet:2004aa not found
+[WARNING] Citeproc: citation Norman:2014aa not found
+[WARNING] Citeproc: citation Oman:1998aa not found
+[WARNING] Citeproc: citation Seber:1989aa not found
+[WARNING] Citeproc: citation Wolter:1985aa not found
+
+Output created: _LOD_Analysis.html
+Warning messages:
+1: The label(s) appendix-a not found 
+2: The label(s) ccga-titration-data not found 
+3: The label(s) effect-design-probit-fit not found 

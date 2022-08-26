@@ -1,0 +1,103 @@
+---
+title: "Limit of Detection/Validation - Bibliography"
+author: ""
+subtitle: ""
+#date: '`r format(Sys.time(), "%a %b %d %X %Y", tz="America/Los_Angeles")`'
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    toc: false
+    fig_caption: yes
+    number_sections: no
+    css: _pandoc3.css
+bibliography: [_LOD.bib]
+csl: _cell-numeric.csl
+#biblio-style: acm
+link-citations: true
+---
+
+<!-- Alternative format
+always_allow_html: yes
+params:
+  input_path: "."
+  output_path: "rendered"
+  version: "latest"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    toc_depth: 3
+    code_folding: hide
+    number_sections: true
+geometry: margin = 0.5 in
+-->
+<style>
+  @import url('https://fonts.googleapis.com/css?family=Raleway');
+@import url('https://fonts.googleapis.com/css?family=Oxygen');
+@import url('https://fonts.googleapis.com/css?family=Raleway:bold');
+@import url('https://fonts.googleapis.com/css?family=Oxygen:bold');
+
+.main-container {
+  max-width: 1400px !important;
+}
+
+body{
+  font-family: 'Oxygen', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+h1,h2,h3,h4 {
+  font-family: 'Raleway', sans-serif;
+}
+
+.container { width: 1400px; }
+
+h2 {
+  background-color: #D4DAEC;
+    text-indent: 100px;
+}
+
+h3 {
+  background-color: #dddddd;
+}
+
+caption {
+  font-size: 20px;
+  caption-side: top;
+  text-indent: 30px;
+  background-color: lightgrey;
+  color: black;
+  margin-top: 5px;
+}
+
+g-table-intro h4 {
+  text-indent: 0px;
+}
+</style>
+
+
+
+---
+nocite: '@*' 
+---
+
+<br/>
+
+
+***
+
+# References
+<div id="refs"></div>
+
+
+
+<!-- To run
+# nohup Rscript -e "knitr::knit2html('_LODBib.Rmd')" > _LODBib.log  &
+
+# Or
+# nohup Rscript -e "rmarkdown::render('_LODBib.Rmd')" > _LODBib.log  &
+
+-->
+
+
