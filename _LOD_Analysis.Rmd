@@ -2,7 +2,7 @@
 title: "LoD Studies: Experimental Design and Analysis"
 output:
   BiocStyle::html_document:
-    download: true
+    code_download: true
     code_folding: hide
     toc: true
     # does this have an effect
