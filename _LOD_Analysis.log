@@ -227,7 +227,6 @@ List of 7
  $ out.width.px : num 1
  $ out.height.px: num 1
 
-The magick package is required to crop "_LOD_Analysis_files/figure-html/lod-lin-inter-1.png" but not available.
   |                                                                              |........................                                              |  35%
   ordinary text without R code
 
@@ -280,7 +279,7 @@ List of 3
 
 output file: _LOD_Analysis.knit.md
 
-/usr/local/bin/pandoc +RTS -K512m -RTS _LOD_Analysis.knit.md --to html4 --from markdown+autolink_bare_uris+tex_math_single_backslash --output _LOD_Analysis.html --lua-filter /Library/Frameworks/R.framework/Versions/4.0/Resources/library/rmarkdown/rmarkdown/lua/pagebreak.lua --lua-filter /Library/Frameworks/R.framework/Versions/4.0/Resources/library/rmarkdown/rmarkdown/lua/latex-div.lua --self-contained --wrap preserve --variable bs3=TRUE --standalone --section-divs --table-of-contents --toc-depth 3 --template /var/folders/jk/d24lm6n944q5y650lph85m7w0000gp/T//RtmpXcmkHH/BiocStyle/template.html --no-highlight --variable highlightjs=1 --number-sections --variable theme=bootstrap --css /Library/Frameworks/R.framework/Versions/4.0/Resources/library/BiocStyle/resources/html/bioconductor.css --css _pandoc3.css --include-in-header /var/folders/jk/d24lm6n944q5y650lph85m7w0000gp/T//RtmpXcmkHH/rmarkdown-strf011158dfd9a.html --mathjax --variable 'mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML' --variable code_folding=hide --variable code_menu=1 --citeproc 
+/usr/local/bin/pandoc +RTS -K512m -RTS _LOD_Analysis.knit.md --to html4 --from markdown+autolink_bare_uris+tex_math_single_backslash --output _LOD_Analysis.html --lua-filter /Library/Frameworks/R.framework/Versions/4.0/Resources/library/rmarkdown/rmarkdown/lua/pagebreak.lua --lua-filter /Library/Frameworks/R.framework/Versions/4.0/Resources/library/rmarkdown/rmarkdown/lua/latex-div.lua --self-contained --wrap preserve --variable bs3=TRUE --standalone --section-divs --table-of-contents --toc-depth 3 --template /var/folders/jk/d24lm6n944q5y650lph85m7w0000gp/T//Rtmp8Nc6qy/BiocStyle/template.html --no-highlight --variable highlightjs=1 --number-sections --variable theme=bootstrap --css /Library/Frameworks/R.framework/Versions/4.0/Resources/library/BiocStyle/resources/html/bioconductor.css --css _pandoc3.css --include-in-header /var/folders/jk/d24lm6n944q5y650lph85m7w0000gp/T//Rtmp8Nc6qy/rmarkdown-strbd36456b9b8.html --mathjax --variable 'mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML' --variable code_folding=hide --variable code_menu=1 --citeproc 
 [WARNING] Citeproc: citation Graybill:1994aa not found
 [WARNING] Citeproc: citation Greenwell:2014aa not found
 [WARNING] Citeproc: citation Huet:2004aa not found
